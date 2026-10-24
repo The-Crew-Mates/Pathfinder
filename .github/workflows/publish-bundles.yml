@@ -1,0 +1,71 @@
+# Builds the trail bundles from pathfinder.db and publishes them on GitHub Pages.
+#
+# - Push to main that changes the trail data or the scripts: build + publish.
+# - Pull request: build only, as a check (nothing is published).
+# - "Run workflow" button on the Actions tab: build + publish by hand.
+#
+# If the build fails (for example a broken route point), nothing is published
+# and the live site keeps its last good version.
+
+name: Publish trail bundles
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - pathfinder.db
+      - scripts/**
+      - db/**
+      - .github/workflows/publish-bundles.yml
+  pull_request:
+    paths:
+      - pathfinder.db
+      - scripts/**
+      - db/**
+      - .github/workflows/publish-bundles.yml
+  workflow_dispatch:
+
+# Only what's needed: read the repo. The deploy job asks for more below.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the repo
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Build the bundles
+        run: python scripts/build_bundles.py
+
+      - name: Hand the public/ folder to the deploy job
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: public
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    # Publishing to GitHub Pages needs these two extra permissions.
+    permissions:
+      pages: write
+      id-token: write
+    # Never run two publishes at the same time; finish one before the next.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

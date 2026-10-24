@@ -46,19 +46,26 @@ Work through the phases **one at a time**. For each phase:
 
 | Phase | Status |
 |---|---|
-| Phase 1: Trail bundles | Built and tested, waiting for review |
-| Phase 2: Publish the bundles | Not started |
+| Phase 1: Trail bundles | Done (branch `publish-bundles`, PR not merged yet) |
+| Phase 2: Publish the bundles | Built and tested locally, waiting for review and first deploy |
 | Phase 3: Real trail data | Not started |
 
-**Already built** (branch `add-trail-database`, not merged yet):
+The repo lives at `github.com/The-Crew-Mates/Pathfinder` (public).
 
-- `db/schema.sql`: the `trails` and `landmarks` tables, data checks, and triggers that raise a trail's `version` whenever it or its landmarks change.
-- `scripts/create_db.py` and `scripts/seed.py`: create `pathfinder.db` and add 3 **placeholder** Nuuksio trails (made-up coordinates).
-- `pathfinder.db` is gitignored. Anyone can rebuild it with `create_db.py` + `seed.py`.
-- Phase 1: `scripts/build_bundles.py` builds `public/index.json` + `public/trails/<slug>.json`. The format is documented in `docs/bundle-format.md`.
+**Already built:**
+
+- **On `main`** (merged in PR #1):
+  - `db/schema.sql`: the `trails` and `landmarks` tables, data checks, and triggers that raise a trail's `version` whenever it or its landmarks change.
+  - `scripts/create_db.py` and `scripts/seed.py`: create `pathfinder.db` and add 3 **placeholder** Nuuksio trails (made-up coordinates).
+- **Phase 1** (branch `publish-bundles`): `scripts/build_bundles.py` builds `public/index.json` + `public/trails/<slug>.json`. The format is documented in `docs/bundle-format.md`.
+- **Phase 2** (branch `publish-bundles`): `.github/workflows/publish-bundles.yml` builds and publishes `public/` on GitHub Pages at `https://the-crew-mates.github.io/Pathfinder/`.
+
+**Decisions made:**
+
+- `pathfinder.db` is committed. It's the source of truth, because the version numbers live in it; rebuilding it from scratch would reset every version to 1.
+- `public/` is not committed. The Action builds it.
+- Bundle URLs in `index.json` are relative.
 
 ## Open questions for later phases
 
-- **Phase 2: where the trail data lives.** A GitHub Action can only rebuild bundles from data that's in git, but `pathfinder.db` is gitignored. Decide what gets committed (the built bundles, the database, or a text export of it).
-- **Phase 2: public or private repo.** This decides whether free GitHub Pages works.
 - **Phase 3: schema change.** `trails.data_source` only allows `placeholder`, `osm` and `manual` today. Lipas routes will need a `lipas` value (or similar).
