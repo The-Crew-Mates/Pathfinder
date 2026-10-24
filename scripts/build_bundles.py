@@ -27,8 +27,12 @@ FORMAT_VERSION = 1
 
 # Credit lines the data licenses require, for each kind of data_source.
 # Placeholder data needs no credit, so it gets an empty list.
+LIPAS_CREDIT = "Route data: Lipas, University of Jyväskylä (CC BY 4.0), https://www.lipas.fi"
+OSM_CREDIT = "© OpenStreetMap contributors (ODbL), https://www.openstreetmap.org/copyright"
 ATTRIBUTIONS = {
-    "osm": ["© OpenStreetMap contributors (ODbL), https://www.openstreetmap.org/copyright"],
+    # Lipas trails get their landmarks from OpenStreetMap, so they need both credits.
+    "lipas": [LIPAS_CREDIT, OSM_CREDIT],
+    "osm": [OSM_CREDIT],
 }
 
 
@@ -78,6 +82,9 @@ def find_bad_point(route):
             return i
         if not (-90 <= lat <= 90 and -180 <= lon <= 180):
             return i
+        # Elevation is optional, but if it's there it must be a number.
+        if "ele" in point and not isinstance(point["ele"], (int, float)):
+            return i
     return None
 
 
@@ -100,7 +107,7 @@ def main():
         "--base-url",
         default="",
         help="put this in front of every bundle_url, e.g. https://you.github.io/Pathfinder/ "
-        "(default: relative URLs like trails/haukankierros.json)",
+        "(default: relative URLs like trails/nahkiaispolku-527088.json)",
     )
     args = parser.parse_args()
 

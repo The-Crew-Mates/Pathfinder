@@ -3,6 +3,10 @@
 # truth for the trail data and its version numbers.)
 public/
 
+# Downloads saved by scripts/import_trails.py, so re-runs don't ask the free
+# services (Lipas, Overpass) for the same data again
+cache/
+
 # Temporary file SQLite makes while it's writing
 pathfinder.db-journal
 

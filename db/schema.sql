@@ -16,6 +16,7 @@ CREATE TABLE trails (
     length_km   REAL    NOT NULL CHECK (length_km > 0),
 
     -- JSON list of points in walking order: [{"lat": 60.304, "lon": 24.517}, ...]
+    -- A point may also have "ele" (elevation in metres) when the source has it.
     -- SQLite has no list type, so lists are stored as JSON text.
     route       TEXT    NOT NULL CHECK (json_valid(route) AND json_array_length(route) >= 2),
 
@@ -25,7 +26,15 @@ CREATE TABLE trails (
 
     -- Defaults to 'placeholder', so data only counts as real if someone says so.
     data_source TEXT    NOT NULL DEFAULT 'placeholder'
-                        CHECK (data_source IN ('placeholder', 'osm', 'manual')),
+                        CHECK (data_source IN ('placeholder', 'lipas', 'osm', 'manual')),
+
+    -- Where an imported trail came from, e.g. 'lipas:527088'. Lets a re-import
+    -- find and update the same trail instead of adding a copy. NULL for
+    -- trails that weren't imported (like the placeholder ones).
+    source_id   TEXT    UNIQUE,
+    -- A "fingerprint" of the imported data. If it hasn't changed on the next
+    -- import, the trail is left alone and keeps its version.
+    source_hash TEXT,
 
     -- Goes up by 1 whenever the trail or one of its landmarks changes (see triggers below).
     version     INTEGER NOT NULL DEFAULT 1,
@@ -38,7 +47,7 @@ CREATE TABLE landmarks (
     trail_id    INTEGER NOT NULL REFERENCES trails (id) ON DELETE CASCADE,
     name        TEXT    NOT NULL,
     type        TEXT    NOT NULL
-                        CHECK (type IN ('shelter', 'viewpoint', 'junction', 'water', 'parking', 'other')),
+                        CHECK (type IN ('shelter', 'hut', 'viewpoint', 'junction', 'water', 'parking', 'other')),
     lat         REAL    NOT NULL CHECK (lat BETWEEN -90 AND 90),
     lon         REAL    NOT NULL CHECK (lon BETWEEN -180 AND 180),
     description TEXT
