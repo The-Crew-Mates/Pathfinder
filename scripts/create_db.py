@@ -34,7 +34,9 @@ def main():
     if DB_PATH.exists():
         if not args.reset:
             sys.exit(
-                f"{DB_PATH.name} already exists. To delete it and start over, run:\n"
+                f"{DB_PATH.name} already exists (it's committed to git, so you usually\n"
+                "don't need to create it). To delete it and start over, which restarts\n"
+                "every trail's version at 1, run:\n"
                 "  python3 scripts/create_db.py --reset"
             )
         DB_PATH.unlink()

@@ -1,5 +1,9 @@
-# Local database: rebuild it any time with create_db.py + seed.py
-pathfinder.db
+# Built by scripts/build_bundles.py. The GitHub Action builds and publishes
+# it, so it isn't committed. (pathfinder.db IS committed: it's the source of
+# truth for the trail data and its version numbers.)
+public/
+
+# Temporary file SQLite makes while it's writing
 pathfinder.db-journal
 
 # Python

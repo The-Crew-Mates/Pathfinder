@@ -17,7 +17,18 @@ public/
 - **`index.json`** is small. The app fetches it to show the trail list and to check for updates.
 - **A trail bundle** has everything about one trail: its route and landmarks. The app downloads it when the user wants that trail offline.
 
-Until hosting is set up (Phase 2), the files are in the `public/` folder of this repo. To try them over HTTP on your own computer, run this from the repo folder:
+### Where to get them
+
+The files are published on GitHub Pages. The app should fetch:
+
+```
+https://the-crew-mates.github.io/Pathfinder/index.json
+```
+
+- **Caching:** GitHub caches the files for up to 10 minutes, so a new version can take a few minutes to appear.
+- **Web apps:** the files can be fetched from a web app on any domain (GitHub Pages allows cross-origin requests).
+
+To try a local build instead, run `python3 scripts/build_bundles.py`, then start a local web server from the repo folder:
 
 ```bash
 python3 -m http.server --directory public 8000
@@ -170,6 +181,7 @@ This also works if `bundle_url` is already a full `https://` URL, so the app doe
    - **No entry with that slug:** the trail was removed. Tell the user, and keep or delete the saved copy.
 
 ```js
+const INDEX_URL = "https://the-crew-mates.github.io/Pathfinder/index.json";
 const index = await (await fetch(INDEX_URL)).json();
 
 for (const entry of index.trails) {
