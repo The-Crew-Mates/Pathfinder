@@ -1,0 +1,100 @@
+{
+  "format_version": 1,
+  "trail_version": 1,
+  "exported_at": "2026-10-24T14:21:43Z",
+  "data_source": "placeholder",
+  "attribution": null,
+  "trail": {
+    "id": 2,
+    "slug": "haukankierros",
+    "name": "Haukankierros",
+    "region": "Nuuksio National Park",
+    "difficulty": "moderate",
+    "length_km": 4.0,
+    "warnings": [
+      "PLACEHOLDER DATA: coordinates are not real. Do not use for navigation.",
+      "Sample warning: steep rocky sections, slippery when wet."
+    ],
+    "route": [
+      {
+        "lat": 60.304,
+        "lon": 24.517
+      },
+      {
+        "lat": 60.30714,
+        "lon": 24.51316
+      },
+      {
+        "lat": 60.30733,
+        "lon": 24.50587
+      },
+      {
+        "lat": 60.30675,
+        "lon": 24.49885
+      },
+      {
+        "lat": 60.30356,
+        "lon": 24.49568
+      },
+      {
+        "lat": 60.29993,
+        "lon": 24.49442
+      },
+      {
+        "lat": 60.29774,
+        "lon": 24.50036
+      },
+      {
+        "lat": 60.29617,
+        "lon": 24.50666
+      },
+      {
+        "lat": 60.29773,
+        "lon": 24.51308
+      },
+      {
+        "lat": 60.3004,
+        "lon": 24.51791
+      },
+      {
+        "lat": 60.304,
+        "lon": 24.517
+      }
+    ],
+    "updated_at": "2026-10-24T14:21:43Z"
+  },
+  "landmarks": [
+    {
+      "id": 4,
+      "name": "Haukkalampi parking",
+      "type": "parking",
+      "lat": 60.304,
+      "lon": 24.517,
+      "description": "Placeholder: sample parking area at the trail start."
+    },
+    {
+      "id": 5,
+      "name": "Trail junction",
+      "type": "junction",
+      "lat": 60.30733,
+      "lon": 24.50587,
+      "description": "Placeholder: sample junction. Keep left to stay on the loop."
+    },
+    {
+      "id": 6,
+      "name": "Lean-to shelter",
+      "type": "shelter",
+      "lat": 60.30356,
+      "lon": 24.49568,
+      "description": "Placeholder: sample lean-to shelter."
+    },
+    {
+      "id": 7,
+      "name": "Cliff viewpoint",
+      "type": "viewpoint",
+      "lat": 60.29617,
+      "lon": 24.50666,
+      "description": "Placeholder: sample viewpoint."
+    }
+  ]
+}
