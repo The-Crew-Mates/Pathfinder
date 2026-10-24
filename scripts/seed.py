@@ -197,7 +197,7 @@ def main():
         print(f"added  {trail['slug']} ({len(trail['landmarks'])} landmarks)")
     print(f"Done: {len(added)} trail(s) added.")
     if added:
-        print("Next, export one:  python3 scripts/export_bundle.py haukankierros")
+        print("Next, build the bundles:  python3 scripts/build_bundles.py")
 
 
 if __name__ == "__main__":
