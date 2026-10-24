@@ -1,0 +1,49 @@
+# Checks the mobile app (app/) on every pull request and push to main that
+# changes it: typecheck, lint and the unit tests (math, storage, settings).
+# Everything runs offline; no phone or emulator needed.
+
+name: App tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - app/**
+      - .github/workflows/app-tests.yml
+  pull_request:
+    paths:
+      - app/**
+      - .github/workflows/app-tests.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Get the repo
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install packages
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npx expo lint
+
+      - name: Run the tests
+        run: npm test -- --ci

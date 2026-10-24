@@ -48,9 +48,18 @@ Work through the phases **one at a time**. For each phase:
 |---|---|
 | Phase 1: Trail bundles | Done (merged in PR #4) |
 | Phase 2: Publish the bundles | Done (merged in PR #4, live since 2026-10-24) |
-| Phase 3: Real trail data | Built and tested locally (branch `real-trail-data`), waiting for review |
+| Phase 3: Real trail data | Done (merged in PR #6, live) |
+| Beacon trail (mobile app) | Milestone 1 of 6 built (branch `beacon-trail`); see `docs/beacon-trail.md` |
 
 The repo lives at `github.com/The-Crew-Mates/Pathfinder` (public).
+
+**Beacon trail:** the mobile app's offline retrace feature, in `app/` (Expo / React Native). Its plan, platform limits, permissions and progress are in `docs/beacon-trail.md`. It's built one milestone at a time:
+1. storage
+2. GPS beacons
+3. dead reckoning
+4. Retrace mode
+5. background
+6. iOS
 
 **Already built:**
 

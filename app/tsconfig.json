@@ -1,0 +1,10 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    // TypeScript 6 no longer loads type packages automatically. The tests use
+    // Jest's describe/it/expect and Node's built-in SQLite, so name them here.
+    "types": ["jest", "node"]
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
+}
