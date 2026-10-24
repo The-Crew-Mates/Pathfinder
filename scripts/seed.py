@@ -183,7 +183,9 @@ def main():
 
                 # Each landmark we just added bumped the trail's version (that's
                 # the trigger doing its job). A brand-new trail should start at 1.
-                conn.execute("UPDATE trails SET version = 1 WHERE id = ?", (trail_id,))
+                # "AND version != 1" matters: setting the version to the value it
+                # already has would make the trigger bump it again.
+                conn.execute("UPDATE trails SET version = 1 WHERE id = ? AND version != 1", (trail_id,))
 
                 added.append(trail)
     except sqlite3.Error as error:

@@ -48,24 +48,43 @@ Work through the phases **one at a time**. For each phase:
 |---|---|
 | Phase 1: Trail bundles | Done (merged in PR #4) |
 | Phase 2: Publish the bundles | Done (merged in PR #4, live since 2026-10-24) |
-| Phase 3: Real trail data | Not started |
+| Phase 3: Real trail data | Built and tested locally (branch `real-trail-data`), waiting for review |
 
 The repo lives at `github.com/The-Crew-Mates/Pathfinder` (public).
 
-**Already built (all on `main`):**
+**Already built:**
 
-- **Database** (PR #1):
+- **Database** (on `main`, PR #1):
   - `db/schema.sql`: the `trails` and `landmarks` tables, data checks, and triggers that raise a trail's `version` whenever it or its landmarks change.
-  - `scripts/create_db.py` and `scripts/seed.py`: create `pathfinder.db` and add 3 **placeholder** Nuuksio trails (made-up coordinates).
-- **Phase 1:** `scripts/build_bundles.py` builds `public/index.json` + `public/trails/<slug>.json`. The format is documented in `docs/bundle-format.md`.
-- **Phase 2:** `.github/workflows/publish-bundles.yml` builds and publishes `public/` on GitHub Pages whenever `pathfinder.db`, `scripts/` or `db/` change on `main`. Live at https://the-crew-mates.github.io/Pathfinder/index.json.
+  - `scripts/create_db.py`: creates `pathfinder.db`.
+  - `scripts/seed.py`: adds 3 placeholder trails, now for testing only.
+- **Phase 1** (on `main`): `scripts/build_bundles.py` builds `public/index.json` + `public/trails/<slug>.json`. The format is documented in `docs/bundle-format.md`.
+- **Phase 2** (on `main`): `.github/workflows/publish-bundles.yml` builds and publishes `public/` on GitHub Pages whenever `pathfinder.db`, `scripts/` or `db/` change on `main`. Live at https://the-crew-mates.github.io/Pathfinder/index.json.
+- **Phase 3** (branch `real-trail-data`):
+  - `scripts/import_trails.py` imports active hiking routes (Lipas type 4405) and nature trails (4404) in Espoo, Kirkkonummi and Vihti, plus OpenStreetMap landmarks within 100 m. That's 30 trails; 6 more are skipped because their route pieces don't connect.
+  - `scripts/geo.py` holds the map maths.
+  - `tests/` holds offline tests, which the Action also runs.
 
 **Decisions made:**
 
-- `pathfinder.db` is committed. It's the source of truth, because the version numbers live in it; rebuilding it from scratch would reset every version to 1.
-- `public/` is not committed. The Action builds it.
-- Bundle URLs in `index.json` are relative.
+- **Where the data lives:**
+  - `pathfinder.db` is committed. It's the source of truth, because the version numbers live in it; rebuilding it from scratch would reset every version to 1.
+  - `public/` is not committed. The Action builds it.
+  - Bundle URLs in `index.json` are relative.
+- **How the import works:**
+  - The import runs on a person's computer, not on GitHub. Its result is reviewed in a PR before it goes live.
+  - Re-imports update in place: unchanged trails keep their version, a changed trail goes up by exactly 1, and slugs never change. Each imported trail stores `source_id` (for example `lipas:527088`) and a `source_hash` fingerprint for this.
+  - OpenStreetMap is asked once for all routes (the public Overpass server is often busy). Downloads are cached for 24 h in `cache/` (not committed).
+- **Data rules:**
+  - Routes with detached pieces are skipped rather than guessed.
+  - Difficulty is estimated from length: under 5 km easy, 5–12 km moderate, over 12 km hard.
+  - Parking lots within 150 m of each other count as one place; other landmark types merge at 30 m. Information boards tagged as parking are skipped.
+  - Route points include `ele` (elevation) when Lipas has it.
+  - Landmark type `hut` was added for wilderness huts.
 
-## Open questions for later phases
+## Open questions and ideas for later
 
-- **Phase 3: schema change.** `trails.data_source` only allows `placeholder`, `osm` and `manual` today. Lipas routes will need a `lipas` value (or similar).
+- **Skipped routes:** 6 of the 36 routes have side branches or detached parts. Supporting them would need routes made of several lines, which is a bundle format change.
+- **Schema changes on a database with real versions:** the Phase 3 schema change was made by rebuilding the database, which was fine while no app had saved anything. From now on, schema changes need a migration that keeps the data and versions.
+- **Better difficulty:** use elevation gain (the route has `ele`) instead of only length.
+- **Bigger area:** add municipalities to `AREA` in `scripts/import_trails.py`.

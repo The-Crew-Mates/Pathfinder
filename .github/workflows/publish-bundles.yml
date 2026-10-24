@@ -1,11 +1,12 @@
-# Builds the trail bundles from pathfinder.db and publishes them on GitHub Pages.
+# Tests the scripts, builds the trail bundles from pathfinder.db and publishes
+# them on GitHub Pages.
 #
-# - Push to main that changes the trail data or the scripts: build + publish.
-# - Pull request: build only, as a check (nothing is published).
-# - "Run workflow" button on the Actions tab: build + publish by hand.
+# - Push to main that changes the trail data, scripts or tests: test + build + publish.
+# - Pull request: test + build only, as a check (nothing is published).
+# - "Run workflow" button on the Actions tab: test + build + publish by hand.
 #
-# If the build fails (for example a broken route point), nothing is published
-# and the live site keeps its last good version.
+# If a test or the build fails (for example a broken route point), nothing is
+# published and the live site keeps its last good version.
 
 name: Publish trail bundles
 
@@ -16,12 +17,14 @@ on:
       - pathfinder.db
       - scripts/**
       - db/**
+      - tests/**
       - .github/workflows/publish-bundles.yml
   pull_request:
     paths:
       - pathfinder.db
       - scripts/**
       - db/**
+      - tests/**
       - .github/workflows/publish-bundles.yml
   workflow_dispatch:
 
@@ -40,6 +43,9 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: "3.13"
+
+      - name: Run the tests
+        run: python -m unittest discover -s tests -v
 
       - name: Build the bundles
         run: python scripts/build_bundles.py

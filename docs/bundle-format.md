@@ -2,16 +2,20 @@
 
 This is the contract between the trail backend and the app. It describes the JSON files the app downloads to show trails and use them offline.
 
-> ⚠️ **Right now all trails are placeholder data** (`"data_source": "placeholder"`). The coordinates are made up. Real data comes later (see `ROADMAP.md`, Phase 3), in exactly this format.
+The trails are real:
+- **Routes** are official hiking routes and nature trails from [Lipas](https://www.lipas.fi), Finland's national database of sports and outdoor places (run by the University of Jyväskylä).
+- **Landmarks** (shelters, huts, viewpoints, water and parking within 100 m of each route) come from [OpenStreetMap](https://www.openstreetmap.org).
+
+Both must be credited in the app; see [What the app must show](#what-the-app-must-show).
 
 ## The files
 
 ```
 public/
-  index.json                     list of every trail
-  trails/haukankierros.json      one bundle per trail
-  trails/korpinkierros.json
-  trails/punarinnankierros.json
+  index.json                            list of every trail
+  trails/nahkiaispolku-527088.json      one bundle per trail
+  trails/paivattarenpolku-527090.json
+  ...
 ```
 
 - **`index.json`** is small. The app fetches it to show the trail list and to check for updates.
@@ -52,17 +56,17 @@ Then open `http://localhost:8000/index.json`.
   "format_version": 1,
   "trails": [
     {
-      "id": 2,
-      "slug": "haukankierros",
-      "name": "Haukankierros",
-      "region": "Nuuksio National Park",
-      "difficulty": "moderate",
-      "length_km": 4.0,
+      "id": 7,
+      "slug": "nahkiaispolku-527088",
+      "name": "Nahkiaispolku",
+      "region": "Espoo",
+      "difficulty": "easy",
+      "length_km": 1.96,
       "version": 1,
-      "updated_at": "2026-10-24T16:19:31Z",
-      "data_source": "placeholder",
-      "bundle_url": "trails/haukankierros.json",
-      "bundle_bytes": 2052
+      "updated_at": "2026-10-24T17:44:46Z",
+      "data_source": "lipas",
+      "bundle_url": "trails/nahkiaispolku-527088.json",
+      "bundle_bytes": 5494
     }
   ]
 }
@@ -78,65 +82,75 @@ Each entry in `trails`:
 | field | type | meaning |
 |---|---|---|
 | `id` | integer | Database id. Don't use it as a long-term key (use `slug`). |
-| `slug` | string | Stable short name, e.g. `haukankierros`. Only `a-z`, `0-9` and `-`. |
+| `slug` | string | Stable short name: the trail's name plus its Lipas id, e.g. `nahkiaispolku-527088`. Only `a-z`, `0-9` and `-`. It never changes, even if the trail is renamed. |
 | `name` | string | Display name. |
-| `region` | string | Where the trail is, e.g. `Nuuksio National Park`. |
-| `difficulty` | string | `easy`, `moderate` or `hard`. |
+| `region` | string | Where the trail is: the municipality, e.g. `Espoo`. |
+| `difficulty` | string | `easy`, `moderate` or `hard`. Lipas has no difficulty rating, so for Lipas trails it's **estimated from the length**: under 5 km easy, 5–12 km moderate, over 12 km hard. |
 | `length_km` | number | Trail length in km. |
 | `version` | integer | Goes up every time the trail or one of its landmarks changes. Same as `trail.version` in its bundle. |
 | `updated_at` | string | When the trail last changed (UTC). |
-| `data_source` | string | `placeholder`, `osm` or `manual`. Show a "sample data" badge for `placeholder`. |
+| `data_source` | string | Where the trail comes from: `lipas`, `osm`, `manual` or `placeholder`. Show a "sample data" badge for `placeholder`. |
 | `bundle_url` | string | Where to download the bundle. Usually **relative to `index.json`** (see [Downloading a bundle](#downloading-a-bundle)). |
 | `bundle_bytes` | integer | Size of the bundle file in bytes, e.g. for "Download 2 KB?". |
 
 ## Trail bundle (`trails/<slug>.json`)
 
-Shortened example (the real file has every route point and landmark):
+A real bundle, shortened (the real file has all 100+ route points):
 
 ```json
 {
   "format_version": 1,
-  "data_source": "placeholder",
-  "attributions": [],
+  "data_source": "lipas",
+  "attributions": [
+    "Route data: Lipas, University of Jyväskylä (CC BY 4.0), https://www.lipas.fi",
+    "© OpenStreetMap contributors (ODbL), https://www.openstreetmap.org/copyright"
+  ],
   "trail": {
-    "id": 2,
-    "slug": "haukankierros",
-    "name": "Haukankierros",
-    "region": "Nuuksio National Park",
-    "difficulty": "moderate",
-    "length_km": 4.0,
+    "id": 7,
+    "slug": "nahkiaispolku-527088",
+    "name": "Nahkiaispolku",
+    "region": "Espoo",
+    "difficulty": "easy",
+    "length_km": 1.96,
     "version": 1,
-    "updated_at": "2026-10-24T16:19:31Z",
-    "warnings": [
-      "PLACEHOLDER DATA: coordinates are not real. Do not use for navigation.",
-      "Sample warning: steep rocky sections, slippery when wet."
-    ],
+    "updated_at": "2026-10-24T17:44:46Z",
+    "warnings": [],
     "route": [
-      { "lat": 60.304, "lon": 24.517 },
-      { "lat": 60.30714, "lon": 24.51316 },
-      { "lat": 60.30733, "lon": 24.50587 }
+      { "lat": 60.31009, "lon": 24.52313, "ele": 62.2 },
+      { "lat": 60.3101, "lon": 24.52324, "ele": 61.4 },
+      { "lat": 60.31015, "lon": 24.52334, "ele": 59.7 }
     ]
   },
   "landmarks": [
     {
-      "id": 4,
-      "name": "Haukkalampi parking",
+      "id": 16,
+      "name": "Haukkalammen pieni pysäköintialue",
       "type": "parking",
-      "lat": 60.304,
-      "lon": 24.517,
-      "description": "Placeholder: sample parking area at the trail start."
+      "lat": 60.30969,
+      "lon": 24.51692,
+      "description": null
+    },
+    {
+      "id": 17,
+      "name": "Haukkalammen iso pysäköintialue",
+      "type": "parking",
+      "lat": 60.30954,
+      "lon": 24.52085,
+      "description": null
     }
   ]
 }
 ```
+
+Names come straight from the sources, so they're usually in Finnish (or Swedish).
 
 Top level:
 
 | field | type | meaning |
 |---|---|---|
 | `format_version` | integer | Version of the file *structure*. See [format_version](#format_version). |
-| `data_source` | string | `placeholder`, `osm` or `manual`. |
-| `attributions` | list of strings | Credit lines you **must show** wherever this trail's data appears (license requirement). Empty for placeholder data. |
+| `data_source` | string | `lipas`, `osm`, `manual` or `placeholder`. |
+| `attributions` | list of strings | Credit lines you **must show** wherever this trail's data appears (license requirement). Lipas trails have two: Lipas for the route, OpenStreetMap for the landmarks. Empty for placeholder data. |
 | `trail` | object | The trail itself (below). |
 | `landmarks` | list | The trail's landmarks (below). Can be empty. |
 
@@ -148,7 +162,7 @@ Top level:
 | `version` | integer | Save this with the bundle. Compare it with `version` in `index.json` to know when your copy is outdated. |
 | `updated_at` | string | When the trail last changed (UTC). |
 | `warnings` | list of strings | Safety warnings to show the hiker. Can be empty. |
-| `route` | list of `{lat, lon}` | The path in walking order, at least 2 points. Loop trails end where they start. |
+| `route` | list of points | The path in walking order, at least 2 points. Loop trails end where they start. Each point is `{"lat", "lon"}`, plus `"ele"` (elevation in metres above sea level) when the source has it. A phone's air-pressure sensor can be compared with `ele` to help place the hiker without GPS. |
 
 Each landmark:
 
@@ -156,15 +170,27 @@ Each landmark:
 |---|---|---|
 | `id` | integer | Database id. |
 | `name` | string | Display name. |
-| `type` | string | `shelter`, `viewpoint`, `junction`, `water`, `parking` or `other`. |
+| `type` | string | One of the types below. |
 | `lat`, `lon` | number | Position in decimal degrees. |
-| `description` | string or `null` | Extra info. Can be `null`. |
+| `description` | string or `null` | Extra info. Often `null`. |
+
+Landmarks are listed **in the order a hiker meets them** along the route. The types are:
+
+| `type` | meaning |
+|---|---|
+| `shelter` | An open shelter, like a lean-to (laavu) or campfire shelter. |
+| `hut` | A wilderness hut (autiotupa): a cabin with walls, open to hikers. |
+| `viewpoint` | A viewpoint. |
+| `water` | Drinking water: a tap, water point or spring. |
+| `parking` | A parking area. |
+| `junction` | A trail junction. |
+| `other` | Anything else. |
 
 ## Using the files in the app
 
 ### Downloading a bundle
 
-`bundle_url` is relative to `index.json`, so `trails/haukankierros.json` sits next to `index.json` on the server. Turn it into a full URL like this (JavaScript):
+`bundle_url` is relative to `index.json`, so `trails/nahkiaispolku-527088.json` sits next to `index.json` on the server. Turn it into a full URL like this (JavaScript):
 
 ```js
 const url = new URL(entry.bundle_url, INDEX_URL);
