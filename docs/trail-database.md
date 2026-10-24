@@ -42,51 +42,33 @@ python3 scripts/seed.py
 
 Adds three placeholder trails: `punarinnankierros` (easy), `haukankierros` (moderate) and `korpinkierros` (hard). It's safe to run again, because trails already in the database are skipped. If anything fails, nothing is saved. If you change the sample data in `seed.py`, run `create_db.py --reset` and then `seed.py`.
 
-**3. Export a bundle**
+**3. Build the bundles**
 
 ```bash
-python3 scripts/export_bundle.py haukankierros
+python3 scripts/build_bundles.py
 ```
 
-Writes `bundles/haukankierros.json`. Add `--out some/folder` to write it somewhere else. The script refuses to export a route with a broken point, and it prints a warning when the trail is placeholder data.
+Builds the `public/` folder: `public/index.json` (a list of every trail) and `public/trails/<slug>.json` (one bundle per trail). Old bundles are deleted first, so a trail removed from the database disappears from `public/` too.
 
-The bundles in `bundles/` are committed to git, so the app devs can grab them from there. `pathfinder.db` is not committed: anyone can rebuild it with steps 1 and 2.
+- **Nothing is written if any trail is broken**, for example a route point with a bad coordinate. That way a half-updated folder can never be published.
+- **Rebuilding unchanged data gives identical files**, because there are no "exported at" times in them. Git only shows a change when the trail data really changed.
+- **Options:**
+  - `--out some/folder` writes somewhere else.
+  - `--base-url https://...` turns the relative `bundle_url`s in `index.json` into full URLs.
+
+The `public/` folder is committed to git, so the app devs can grab the files from there. `pathfinder.db` is not committed: anyone can rebuild it with steps 1 and 2.
+
+To look at the files the way the app will see them once they're hosted, start a small local web server:
+
+```bash
+python3 -m http.server --directory public 8000
+```
+
+Then open `http://localhost:8000/index.json`. Press Ctrl+C to stop the server.
 
 ## Bundle format
 
-```json
-{
-  "format_version": 1,
-  "trail_version": 1,
-  "exported_at": "2026-10-24T14:20:15Z",
-  "data_source": "placeholder",
-  "attribution": null,
-  "trail": {
-    "id": 2,
-    "slug": "haukankierros",
-    "name": "Haukankierros",
-    "region": "Nuuksio National Park",
-    "difficulty": "moderate",
-    "length_km": 4.0,
-    "warnings": ["PLACEHOLDER DATA: coordinates are not real. Do not use for navigation.", "..."],
-    "route": [{ "lat": 60.304, "lon": 24.517 }, { "lat": 60.30714, "lon": 24.51316 }],
-    "updated_at": "2026-10-24T14:20:15Z"
-  },
-  "landmarks": [
-    { "id": 4, "name": "Haukkalampi parking", "type": "parking", "lat": 60.304, "lon": 24.517, "description": "..." }
-  ]
-}
-```
-
-| field | meaning |
-|---|---|
-| `trail_version` | Goes up every time the trail or one of its landmarks changes. **If the app's saved copy has a lower number, that copy is outdated.** |
-| `format_version` | Changes only when the structure of the file changes. If it's higher than the app understands, the app should ask the user to update the app instead of trying to read the file. |
-| `data_source` | `placeholder`, `osm` or `manual`. The app can show a "sample data" banner for `placeholder`. |
-| `attribution` | Credit text the app must show for OpenStreetMap data. `null` for other data. |
-| `route` | Points in walking order. Loop trails end where they start. |
-| `landmarks[].type` | `shelter`, `viewpoint`, `junction`, `water`, `parking` or `other` |
-| times | UTC, in ISO 8601 format |
+The exact JSON format of `index.json` and the trail bundles is in [bundle-format.md](bundle-format.md). That's the doc for the frontend team.
 
 ## How versions work
 
@@ -99,10 +81,10 @@ sqlite3 pathfinder.db "UPDATE trails SET length_km = 4.2 WHERE slug = 'haukankie
 ```
 
 ```bash
-python3 scripts/export_bundle.py haukankierros
+python3 scripts/build_bundles.py
 ```
 
-The export now says `trail version 2`.
+In `public/index.json`, Haukankierros now has `"version": 2`. So does `trail.version` in `public/trails/haukankierros.json`. The other trails stay at 1.
 
 Careful: `create_db.py --reset` starts every version at 1 again. An app that saved version 2 won't see a new version 1 as newer, so reset only while you're still testing.
 
@@ -116,8 +98,9 @@ Tip: [DB Browser for SQLite](https://sqlitebrowser.org) is a free app for lookin
 | `scripts/database.py` | Shared helper that opens `pathfinder.db` (and switches on the `trail_id` check) |
 | `scripts/create_db.py` | Creates `pathfinder.db` from `db/schema.sql` |
 | `scripts/seed.py` | Adds the 3 placeholder trails |
-| `scripts/export_bundle.py` | Exports one trail as `bundles/<slug>.json` |
-| `bundles/` | Exported bundles for the app |
+| `scripts/build_bundles.py` | Builds `public/index.json` and one bundle per trail in `public/trails/` |
+| `public/` | The built files, ready to publish as static files |
+| `docs/bundle-format.md` | The exact JSON format, for the frontend team |
 
 ## Moving to Supabase later
 

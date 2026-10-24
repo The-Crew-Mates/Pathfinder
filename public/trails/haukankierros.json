@@ -1,9 +1,7 @@
 {
   "format_version": 1,
-  "trail_version": 1,
-  "exported_at": "2026-10-24T14:21:43Z",
   "data_source": "placeholder",
-  "attribution": null,
+  "attributions": [],
   "trail": {
     "id": 2,
     "slug": "haukankierros",
@@ -11,6 +9,8 @@
     "region": "Nuuksio National Park",
     "difficulty": "moderate",
     "length_km": 4.0,
+    "version": 1,
+    "updated_at": "2026-10-24T16:21:31Z",
     "warnings": [
       "PLACEHOLDER DATA: coordinates are not real. Do not use for navigation.",
       "Sample warning: steep rocky sections, slippery when wet."
@@ -60,8 +60,7 @@
         "lat": 60.304,
         "lon": 24.517
       }
-    ],
-    "updated_at": "2026-10-24T14:21:43Z"
+    ]
   },
   "landmarks": [
     {

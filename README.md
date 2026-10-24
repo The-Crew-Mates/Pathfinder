@@ -9,7 +9,11 @@ Stores hiking trails and their landmarks, and exports each trail as a JSON bundl
 ```bash
 python3 scripts/create_db.py
 python3 scripts/seed.py
-python3 scripts/export_bundle.py haukankierros
+python3 scripts/build_bundles.py
 ```
 
-These create `pathfinder.db`, add 3 sample trails, and write `bundles/haukankierros.json`. See [docs/trail-database.md](docs/trail-database.md) for the bundle format, how versions work and more.
+These create `pathfinder.db`, add 3 sample trails, and build the `public/` folder: `index.json` plus one bundle per trail, ready to publish as static files.
+
+- Frontend team: the JSON format is in [docs/bundle-format.md](docs/bundle-format.md).
+- Setup details and how versions work: [docs/trail-database.md](docs/trail-database.md).
+- What's planned next: [ROADMAP.md](ROADMAP.md).

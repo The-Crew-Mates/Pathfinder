@@ -1,0 +1,44 @@
+{
+  "format_version": 1,
+  "trails": [
+    {
+      "id": 2,
+      "slug": "haukankierros",
+      "name": "Haukankierros",
+      "region": "Nuuksio National Park",
+      "difficulty": "moderate",
+      "length_km": 4.0,
+      "version": 1,
+      "updated_at": "2026-10-24T16:21:31Z",
+      "data_source": "placeholder",
+      "bundle_url": "trails/haukankierros.json",
+      "bundle_bytes": 2052
+    },
+    {
+      "id": 3,
+      "slug": "korpinkierros",
+      "name": "Korpinkierros",
+      "region": "Nuuksio National Park",
+      "difficulty": "hard",
+      "length_km": 7.5,
+      "version": 1,
+      "updated_at": "2026-10-24T16:21:31Z",
+      "data_source": "placeholder",
+      "bundle_url": "trails/korpinkierros.json",
+      "bundle_bytes": 2351
+    },
+    {
+      "id": 1,
+      "slug": "punarinnankierros",
+      "name": "Punarinnankierros",
+      "region": "Nuuksio National Park",
+      "difficulty": "easy",
+      "length_km": 2.0,
+      "version": 1,
+      "updated_at": "2026-10-24T16:21:31Z",
+      "data_source": "placeholder",
+      "bundle_url": "trails/punarinnankierros.json",
+      "bundle_bytes": 1688
+    }
+  ]
+}
