@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><meta content="mobile_stack" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&amp;family=Space+Grotesk:wght@600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{width:100vw;margin:0;padding:0;}body{overscroll-behavior:none;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"primary-fixed":"#aef1d2","primary-fixed-dim":"#92d4b7","on-secondary-fixed":"#161d17","secondary":"#586059","on-tertiary":"#ffffff","outline-variant":"#bfc9c2","error-container":"#ffdad6","on-primary-fixed-variant":"#04513b","on-tertiary-fixed-variant":"#004395","on-secondary-container":"#5e665f","surface-bright":"#effcf7","on-tertiary-fixed":"#001a42","surface":"#effcf7","on-background":"#121e1b","on-secondary-fixed-variant":"#414942","secondary-container":"#dde5db","primary":"#004330","outline":"#707973","surface-container-high":"#ddebe6","error":"#ba1a1a","on-surface-variant":"#404944","surface-container-low":"#e9f7f1","on-surface":"#121e1b","surface-dim":"#cfddd8","on-secondary":"#ffffff","surface-tint":"#286952","surface-container-lowest":"#ffffff","tertiary-container":"#004eaa","on-error-container":"#93000a","tertiary":"#00387e","inverse-primary":"#92d4b7","on-primary-container":"#90d2b5","on-tertiary-container":"#abc5ff","on-primary":"#ffffff","surface-container":"#e3f1ec","background":"#effcf7","on-error":"#ffffff","inverse-surface":"#273330","surface-variant":"#d8e6e0","on-primary-fixed":"#002116","secondary-fixed-dim":"#c1c9bf","tertiary-fixed":"#d8e2ff","secondary-fixed":"#dde5db","surface-container-highest":"#d8e6e0","primary-container":"#175c45","inverse-on-surface":"#e6f4ef","tertiary-fixed-dim":"#aec6ff"},borderRadius:{DEFAULT:"1rem",lg:"2rem",xl:"3rem",full:"9999px"},spacing:{"margin-mobile":"1rem","space-sm":"0.5rem","space-xl":"2rem","space-xs":"0.25rem","space-md":"0.75rem","space-lg":"1.25rem","gutter-mobile":"0.75rem",gutter:"1rem",margin:"1.25rem"},fontFamily:{"display-lg":["Plus Jakarta Sans"],"label-telemetry":["Space Grotesk"],"label-md":["Space Grotesk"],"body-lg":["Plus Jakarta Sans"],"headline-sm":["Plus Jakarta Sans"],"display-lg-mobile":["Plus Jakarta Sans"],"body-md":["Plus Jakarta Sans"],"body-sm":["Plus Jakarta Sans"],"headline-lg":["Plus Jakarta Sans"],"label-sm":["Space Grotesk"],"headline-md":["Plus Jakarta Sans"]},fontSize:{"display-lg":["40px",{lineHeight:"48px",letterSpacing:"-0.03em",fontWeight:"800"}],"label-telemetry":["24px",{lineHeight:"28px",letterSpacing:"-0.02em",fontWeight:"700"}],"label-md":["12px",{lineHeight:"16px",letterSpacing:"0.04em",fontWeight:"600"}],"body-lg":["17px",{lineHeight:"24px",letterSpacing:"-0.01em",fontWeight:"400"}],"headline-sm":["18px",{lineHeight:"24px",letterSpacing:"-0.01em",fontWeight:"600"}],"display-lg-mobile":["32px",{lineHeight:"38px",letterSpacing:"-0.02em",fontWeight:"800"}],"body-md":["15px",{lineHeight:"22px",letterSpacing:"0em",fontWeight:"400"}],"body-sm":["13px",{lineHeight:"18px",letterSpacing:"0.01em",fontWeight:"400"}],"headline-lg":["28px",{lineHeight:"34px",letterSpacing:"-0.02em",fontWeight:"700"}],"label-sm":["10px",{lineHeight:"14px",letterSpacing:"0.06em",fontWeight:"700"}],"headline-md":["22px",{lineHeight:"28px",letterSpacing:"-0.015em",fontWeight:"700"}]}}}};</script></head><body class="bg-surface font-body-md text-on-surface antialiased flex flex-col min-h-screen selection:bg-primary-fixed" style="background-color: #0b1311; color: #e1ede8;"><header class="fixed top-0 w-full z-50 pt-safe bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]" style="background-color: rgba(11, 19, 17, 0.92); border-bottom: 1px solid rgba(35, 56, 48, 0.6);"><div class="flex flex-col"><div class="h-5 px-5 flex items-center justify-between font-label-sm text-label-sm text-on-surface-variant"><div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[13px] text-amber-700 font-bold">signal_cellular_nodata</span><span class="uppercase tracking-wider font-bold text-[10px] text-amber-900 bg-amber-100/80 px-1.5 py-0.5 rounded">GPS Unavailable · Estimated Position</span></div><div class="flex items-center gap-2"><span class="material-symbols-outlined text-[13px] text-primary">sensors</span><span class="text-[10px] font-bold">Inertial Dead-Reckoning</span><span class="material-symbols-outlined text-[13px] text-on-surface">battery_charging_90</span></div></div><div class="h-14 px-space-sm flex items-center justify-between"><div class="flex items-center gap-space-xs"><button aria-label="Go Back" class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface hover:bg-surface-container-high transition-colors" onclick="history.back()" style="color: #e1ede8;"><span class="material-symbols-outlined text-[22px]">arrow_back_ios_new</span></button><img alt="Topo App Logo" class="h-7 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA2yV38XYx4w6o3d8OVIZVDtBSDcUxwVyGjWcjI1P5p28haWJ2FzJ4ozv5MkS7To9mb5KZSu6oonUaxCNinjneHBj3pCiglW3AHJTqjb_zqm6EoTik6tqg_HMckiHVFFywj3kLwKlto5OGsILlZY6s9l7Knj0-O-v0xnvJSysMVEB_gO25aZwBpxngIZ6m2yGw7rmvyXWfK6Di0RVP8YlU6P5yT9kzcfGjbyXsThgeYUCv4j65jrkAz"/><h1 class="font-headline-sm text-headline-sm text-on-surface truncate ml-1" style="color: #f1f8f5;">Live Navigation</h1></div><div class="flex items-center gap-2 pr-space-xs"><!-- Presentation Demo Mode Toggle --><button class="px-2 py-1 rounded-full bg-surface-container-high border border-outline-variant/50 text-[11px] font-bold text-on-surface flex items-center gap-1 active:scale-95 transition-all shadow-sm" id="btn-toggle-demo" style="background-color: #162420; border-color: #233a32; color: #aef1d2;"><span class="inline-block w-2 h-2 rounded-full bg-emerald-500" id="demo-indicator"></span><span id="demo-label">On Track</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></div></header><main class="flex-1 flex flex-col relative w-full pt-20 pb-safe bg-surface" style="background-color: #0b1311;"><div class="flex flex-col w-full px-margin-mobile pb-space-xl gap-space-md">
+<!-- TOP TURN HEADS-UP DISPLAY (APPLE MAPS STYLE) -->
+<div class="w-full bg-primary-container text-on-primary rounded-lg p-space-md shadow-xl relative overflow-hidden transition-colors duration-300" id="turn-hud-card" style="background-color: #0f382a; border: 1px solid #1f5c44; box-shadow: 0 0 20px rgba(15, 56, 42, 0.4);">
+<!-- Specular ambient highlight -->
+<div class="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none"></div>
+<div class="relative z-10 flex items-start gap-space-md">
+<!-- Turn Glyph Circle -->
+<div class="w-12 h-12 rounded-full bg-primary-fixed flex items-center justify-center flex-shrink-0 text-on-primary-fixed shadow-md" id="turn-glyph">
+<span class="material-symbols-outlined text-[28px]" style="font-variation-settings: 'FILL' 1;">turn_slight_left</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-space-xs font-label-sm text-label-sm uppercase tracking-wider text-primary-fixed" id="turn-badge">
+<span class="inline-block w-2 h-2 rounded-full bg-primary-fixed animate-ping"></span>
+<span class="font-bold">ACTIVE BACKTRACK · NEXT TURN 45M</span>
+</div>
+<h2 class="font-headline-md text-headline-md text-on-primary leading-tight mt-0.5 truncate" id="turn-main-text">
+          Turn slight left
+        </h2>
+<p class="font-body-sm text-body-sm text-on-primary-container truncate font-medium" id="turn-sub-text" style="color: #bbf3dc;">
+          Rejoin recorded track at Wooden Bridge marker
+        </p>
+<!-- Next Step Peek -->
+<div class="mt-space-sm pt-space-xs flex items-center gap-space-xs text-primary-fixed-dim/90 font-label-md text-label-md border-t border-white/10" id="turn-next-peek">
+<span class="material-symbols-outlined text-[16px]">straight</span>
+<span class="truncate">Then follow downward contour 320m</span>
+</div>
+</div>
+</div>
+</div>
+<!-- LIVE TOPOGRAPHIC BACKTRACK MAP CANVAS -->
+<div class="relative w-full h-80 rounded-lg overflow-hidden shadow-lg border border-[#233a32]" style="background-color: #0e1714;">
+<!-- Topographic Dark Canvas SVG Terrain & Luminous Contours -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none" fill="none" viewbox="0 0 360 320" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<filter height="160%" id="trail-glow-night" width="160%" x="-30%" y="-30%">
+<fedropshadow dx="0" dy="0" flood-color="#4ade80" flood-opacity="0.6" stddeviation="4"></fedropshadow>
+</filter>
+<filter height="160%" id="cyan-pulse" width="160%" x="-30%" y="-30%">
+<fedropshadow dx="0" dy="0" flood-color="#38bdf8" flood-opacity="0.7" stddeviation="3"></fedropshadow>
+</filter>
+<radialgradient cx="50%" cy="50%" id="hiker-aurora" r="50%">
+<stop offset="0%" stop-color="#38bdf8" stop-opacity="0.35"></stop>
+<stop offset="100%" stop-color="#38bdf8" stop-opacity="0"></stop>
+</radialgradient>
+</defs>
+<!-- Night Mode Topo Contour Elevation Curves (#1d3a30) -->
+<path d="M-20 70 Q 70 30, 160 85 T 380 40" stroke="#1d3a30" stroke-width="1.2"></path>
+<path d="M-20 120 Q 90 70, 180 130 T 380 95" stroke="#1d3a30" stroke-width="1.2"></path>
+<path d="M-20 170 Q 110 115, 200 180 T 380 150" stroke="#224438" stroke-width="1.5"></path>
+<path d="M-20 220 Q 120 160, 220 230 T 380 200" stroke="#1d3a30" stroke-width="1.2"></path>
+<path d="M-20 270 Q 140 210, 240 275 T 380 250" stroke="#1d3a30" stroke-width="1.2"></path>
+<path d="M-20 310 Q 160 260, 260 310 T 380 290" stroke="#1d3a30" stroke-width="1.2"></path>
+<!-- Outbound Track (Muted slate dashed reference) -->
+<path d="M 68 55 C 105 85, 135 125, 175 160 C 215 195, 255 235, 292 270" stroke="#334b42" stroke-dasharray="4 4" stroke-linecap="round" stroke-width="2.5"></path>
+<!-- Night Vision Glowing Recorded Return Vector (Luminous Emerald & Cyan) -->
+<path d="M 292 270 C 255 235, 215 195, 175 160 C 135 125, 105 85, 68 55" filter="url(#trail-glow-night)" stroke="#10b981" stroke-linecap="round" stroke-width="5"></path>
+<path d="M 292 270 C 255 235, 215 195, 175 160 C 135 125, 105 85, 68 55" stroke="#a7f3d0" stroke-dasharray="8 6" stroke-linecap="round" stroke-width="2.5"></path>
+<!-- Waypoint Landmark Markers along Pine Ridge route -->
+<!-- Wooden Bridge Marker -->
+<circle cx="175" cy="160" fill="#14201c" r="5" stroke="#34d399" stroke-width="2"></circle>
+<text fill="#a7f3d0" font-family="'Plus Jakarta Sans', sans-serif" font-size="10" font-weight="700" paint-order="stroke" stroke="#0b1311" stroke-width="3" x="186" y="164">Wooden Bridge</text>
+<!-- Mirror Lake Marker -->
+<circle cx="218" cy="202" fill="#0284c7" r="4.5" stroke="#bae6fd" stroke-width="1.5"></circle>
+<text fill="#7dd3fc" font-family="'Plus Jakarta Sans', sans-serif" font-size="9" font-weight="700" paint-order="stroke" stroke="#0b1311" stroke-width="3" x="228" y="206">Mirror Lake</text>
+<!-- High Ridge Pass Peak (Summit Origin) -->
+<circle cx="292" cy="270" fill="#1e2d27" r="6" stroke="#6ee7b7" stroke-width="2"></circle>
+<text fill="#94a3b8" font-family="'Plus Jakarta Sans', sans-serif" font-size="9" font-weight="700" paint-order="stroke" stroke="#0b1311" stroke-width="3" x="245" y="285">High Ridge (1,890m)</text>
+<!-- Destination: Pine Ridge Trailhead (1,240m) -->
+<circle cx="68" cy="55" fill="#065f46" r="11" stroke="#34d399" stroke-width="1.5"></circle>
+<circle cx="68" cy="55" fill="#6ee7b7" r="5"></circle>
+<text fill="#e1ede8" font-family="'Plus Jakarta Sans', sans-serif" font-size="10" font-weight="800" paint-order="stroke" stroke="#0b1311" stroke-width="3" x="82" y="58">Pine Ridge Base (1,240m)</text>
+<!-- Estimated Position Marker (Active Hiker with ±15m Uncertainty Radius) -->
+<g id="hiker-position-group" transform="translate(0, 0)">
+<circle class="animate-pulse" cx="205" cy="188" fill="url(#hiker-aurora)" id="uncertainty-ring" r="24" stroke="#38bdf8" stroke-dasharray="3 3" stroke-width="1.5"></circle>
+<circle cx="205" cy="188" fill="#38bdf8" filter="url(#cyan-pulse)" id="hiker-dot" r="7" stroke="#ffffff" stroke-width="2.5"></circle>
+<polygon fill="#38bdf8" id="hiker-heading" points="205,175 200,185 210,185"></polygon>
+</g>
+<!-- Drift Vector (Hidden by default, shown in warning demo) -->
+<path class="hidden" d="M 218 202 C 228 190, 240 180, 245 168" filter="url(#trail-glow-night)" id="drift-trail" stroke="#f87171" stroke-dasharray="5 3" stroke-width="3.5"></path>
+</svg>
+<!-- Map Floating Controls (Night Vision Glass Cluster) -->
+<div class="absolute right-3 top-3 flex flex-col gap-2 z-20">
+<button aria-label="Re-center estimated location" class="w-10 h-10 rounded-full bg-[#14201c]/90 border border-[#233a32] backdrop-blur-md shadow-md flex items-center justify-center text-[#aef1d2] hover:bg-[#1a2c26] active:scale-90 transition-transform" id="btn-recenter">
+<span class="material-symbols-outlined text-[20px]">my_location</span>
+</button>
+<button aria-label="Toggle Compass HUD" class="w-10 h-10 rounded-full bg-[#14201c]/90 border border-[#233a32] backdrop-blur-md shadow-md flex items-center justify-center text-[#aef1d2] hover:bg-[#1a2c26] active:scale-90 transition-transform" id="btn-toggle-compass">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">explore</span>
+</button>
+<button aria-label="Topographic Layer" class="w-10 h-10 rounded-full bg-[#14201c]/90 border border-[#233a32] backdrop-blur-md shadow-md flex items-center justify-center text-[#92d4b7] hover:bg-[#1a2c26] active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-[20px]">layers</span>
+</button>
+</div>
+<!-- Floating Destination Pill: Pine Ridge Trailhead (Night Vision Glass) -->
+<div class="absolute left-3 top-3 z-10 bg-[#14201c]/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-md flex items-center gap-2 border border-[#233a32]">
+<span class="material-symbols-outlined text-[#34d399] text-[18px]">flag</span>
+<div class="flex flex-col">
+<span class="font-headline-sm text-[12px] leading-tight font-bold text-[#f1f8f5]">Pine Ridge Trailhead</span>
+<span class="font-label-sm text-label-sm text-[#92d4b7] font-semibold">1,240m • 1.8 km to base</span>
+</div>
+</div>
+<!-- Honest Sensor & Route Quality Badge (Bottom Map Edge) -->
+<div class="absolute left-3 bottom-3 z-10 bg-[#14201c]/90 backdrop-blur-md px-3 py-1 rounded-full shadow-sm flex items-center gap-1.5 font-label-sm text-label-sm text-[#cbdad4] border border-[#233a32]">
+<span class="material-symbols-outlined text-amber-400 text-[14px]">sensors_off</span>
+<span class="font-medium text-[11px] text-[#e1ede8]">Following recorded route in reverse</span>
+</div>
+<!-- Interactive Compass Overlay Modal (Toggleable via Compass Button) -->
+<div class="hidden absolute inset-0 z-30 bg-[#0e1714]/95 backdrop-blur-md flex flex-col items-center justify-center p-4" id="compass-modal-overlay">
+<button class="absolute top-3 right-3 w-8 h-8 rounded-full bg-[#1e2d27] flex items-center justify-center text-[#e1ede8]" id="btn-close-compass">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+<div class="relative w-36 h-36 rounded-full border-4 border-dashed border-[#1f5c44] flex items-center justify-center mb-2">
+<div class="absolute top-2 text-[11px] font-bold text-red-400">N</div>
+<div class="absolute bottom-2 text-[11px] font-bold text-[#707973]">S</div>
+<div class="absolute right-2 text-[11px] font-bold text-[#707973]">E</div>
+<div class="absolute left-2 text-[11px] font-bold text-[#707973]">W</div>
+<div class="w-1.5 h-24 bg-gradient-to-t from-slate-600 to-red-500 rounded-full -rotate-45 shadow"></div>
+<div class="w-4 h-4 rounded-full bg-[#10b981] border-2 border-[#0b1311] absolute"></div>
+</div>
+<span class="font-headline-md text-headline-md font-bold text-[#f1f8f5]">315° NW</span>
+<span class="font-label-sm text-label-sm text-[#92d4b7] font-semibold">Inertial Bearing to Trailhead</span>
+<span class="mt-1 text-[11px] bg-[#175c45] text-[#aef1d2] px-2 py-0.5 rounded-full font-bold border border-[#233a32]">Reverse Bearing Aligned</span>
+</div>
+</div>
+<!-- REASSURING MASCOT COMPANION CARD -->
+<div class="w-full rounded-lg p-space-md shadow-md flex items-center gap-space-md relative overflow-hidden border border-[#233830]" style="background-color: #14201c;">
+<!-- Mole Mascot pointing forward (DATA:IMAGE:IMAGE_18) -->
+<div class="relative w-20 h-20 flex-shrink-0">
+<img alt="Topo the Mole pointing forward" class="w-full h-full object-contain filter drop-shadow select-none" src="https://lh3.googleusercontent.com/aida/AEtjO1VWBeATesmkqL2c6Bhlg5GZHkTB1OkRm-lQGETAn3vbJwYHVEqRCLtMcOypgLkeQtvbk4styiZrAFR6KSkvD8QYQfKqtvPJ2oAVWn4GNpb_YmnO5J3DL3wlkSyL4ZKKILu4SPDTj0O_IbiKmii1BFAgYzSDajqScHhJDPEnQFd2IBDQ8a_qWXW8kJPKGbg_CdwHo2VR6mUwh6ZE9GanC6kM04XHME3FwU5IpdkiL0gbLHjzHUlYe2XBDTU"/>
+</div>
+<!-- Mascot Speech Dialogue in Dark Mode -->
+<div class="flex-1 min-w-0 p-space-sm rounded-DEFAULT relative border border-[#233a32]" style="background-color: #0f1916;">
+<!-- Talk bubble notch pointing toward Mole -->
+<div class="absolute -left-1.5 top-6 w-3 h-3 border-l border-b border-[#233a32] rotate-45" style="background-color: #0f1916;"></div>
+<div class="flex items-center gap-1 text-[#34d399] mb-0.5">
+<span class="material-symbols-outlined text-[15px]">pets</span>
+<span class="font-label-sm text-label-sm tracking-wider uppercase font-bold">Topo Navigator</span>
+</div>
+<p class="font-body-sm text-body-sm text-[#f1f8f5] font-semibold leading-snug" id="mascot-speech">
+  “This way! Retracing our recorded steps back down toward Pine Ridge Trailhead.”
+</p>
+</div>
+</div>
+<!-- TELEMETRY & RETURN METRICS (APPLE FITNESS STYLE HUD) -->
+<div class="grid grid-cols-3 gap-space-xs">
+<!-- Distance HUD -->
+<div class="rounded-DEFAULT p-space-sm shadow-sm flex flex-col items-center text-center border border-[#233a32]" style="background-color: #14201c;">
+<span class="font-label-sm text-label-sm uppercase text-[#92d4b7] font-bold">Rem. Dist</span>
+<div class="flex items-baseline gap-0.5 mt-0.5">
+<span class="font-label-telemetry text-label-telemetry text-[#ffffff] font-bold">1.8</span>
+<span class="font-label-md text-label-md text-[#92d4b7] font-semibold">km</span>
+</div>
+<div class="flex items-center gap-0.5 text-[#34d399] text-[11px] font-bold mt-1">
+<span class="material-symbols-outlined text-[13px]">arrow_downward</span>
+<span>-0.4 km</span>
+</div>
+</div>
+<!-- Est. Time HUD -->
+<div class="rounded-DEFAULT p-space-sm shadow-sm flex flex-col items-center text-center border border-[#233a32]" style="background-color: #14201c;">
+<span class="font-label-sm text-label-sm uppercase text-[#92d4b7] font-bold">Est. Time</span>
+<div class="flex items-baseline gap-0.5 mt-0.5">
+<span class="font-label-telemetry text-label-telemetry text-[#ffffff] font-bold">34</span>
+<span class="font-label-md text-label-md text-[#92d4b7] font-semibold">min</span>
+</div>
+<div class="flex items-center gap-0.5 text-[#a3b0a9] text-[11px] font-semibold mt-1">
+<span class="material-symbols-outlined text-[13px]">schedule</span>
+<span>4:15 PM</span>
+</div>
+</div>
+<!-- Elevation Descent HUD -->
+<div class="rounded-DEFAULT p-space-sm shadow-sm flex flex-col items-center text-center border border-[#233a32]" style="background-color: #14201c;">
+<span class="font-label-sm text-label-sm uppercase text-[#92d4b7] font-bold">Descent</span>
+<div class="flex items-baseline gap-0.5 mt-0.5">
+<span class="font-label-telemetry text-label-telemetry text-[#ffffff] font-bold">180</span>
+<span class="font-label-md text-label-md text-[#92d4b7] font-semibold">m</span>
+</div>
+<div class="flex items-center gap-0.5 text-[#34d399] text-[11px] font-bold mt-1">
+<span class="material-symbols-outlined text-[13px]">south_east</span>
+<span>Steady</span>
+</div>
+</div>
+</div>
+<!-- HONEST STATUS INDICATOR & ESTIMATED POSITION UNCERTAINTY -->
+<div class="w-full border border-[#233a32] rounded-DEFAULT px-space-md py-2.5 flex items-center justify-between shadow-sm" id="status-strip" style="background-color: #14201c;">
+<div class="flex items-center gap-space-sm">
+<div class="w-7 h-7 rounded-full bg-[#175c45] flex items-center justify-center text-[#aef1d2]" id="status-icon-box">
+<span class="material-symbols-outlined text-[17px]" id="status-icon">timeline</span>
+</div>
+<div>
+<p class="font-headline-sm text-[13px] font-bold text-[#f1f8f5]" id="status-title">Recorded Track Guidance</p>
+<p class="font-label-sm text-label-sm text-[#92d4b7]" id="status-subtitle">Estimated position ±15m uncertainty • Sensor-assisted inertial return</p>
+</div>
+</div>
+<span class="font-label-sm text-label-sm uppercase font-bold text-[#aef1d2] px-2.5 py-1 bg-[#175c45]/70 border border-[#233a32] rounded-full" id="status-badge">Guide Active</span>
+</div>
+<!-- GLOVE-FRIENDLY LARGE ACTION & SAFETY ERGONOMIC THUMB ZONE -->
+<div class="flex flex-col gap-2.5 mt-space-xs">
+<!-- Primary Glove-Friendly Pause / Resume Backtrack (Dark Emerald #175C45) -->
+<button class="w-full h-14 text-white rounded-full font-headline-sm text-headline-sm flex items-center justify-center gap-space-sm shadow-lg active:scale-[0.98] transition-all border border-[#278263]" id="btn-backtrack-action" style="background-color: #175c45;">
+<span class="material-symbols-outlined text-[24px]">pause_circle</span>
+<span class="font-bold">Pause Backtrack</span>
+</button>
+<!-- Secondary Emergency & Controls Grid (High Contrast Night Readability) -->
+<div class="grid grid-cols-2 gap-space-sm">
+<!-- SOS Whistle Sound Button (Dark Translucent Glass #3B2020 with bright red text) -->
+<button class="h-13 py-3 rounded-full font-headline-sm text-[14px] flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-transform border border-red-900/60" id="btn-whistle" style="background-color: #3b2020; color: #fca5a5;">
+<span class="material-symbols-outlined text-[20px] text-red-400">volume_up</span>
+<span class="font-bold">Sound Safety Whistle</span>
+</button>
+<!-- Complete Navigation (Dark Translucent Glass #1E2D27) -->
+<button class="h-13 py-3 rounded-full font-headline-sm text-[14px] flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-transform border border-[#233a32] text-[#e1ede8]" onclick="window.history.back()" style="background-color: #1e2d27;">
+<span class="material-symbols-outlined text-[20px] text-[#92d4b7]">check_circle</span>
+<span class="font-bold">End Navigation</span>
+</button>
+</div>
+</div>
+</div>
+<script>
+  // Pause / Resume Backtrack toggle
+  const backtrackBtn = document.getElementById('btn-backtrack-action');
+  let isPaused = false;
+
+  if (backtrackBtn) {
+    backtrackBtn.addEventListener('click', () => {
+      isPaused = !isPaused;
+      if (isPaused) {
+        backtrackBtn.innerHTML = `
+          <span class="material-symbols-outlined text-[24px]">play_circle</span>
+          <span>Resume Backtrack</span>
+        `;
+        backtrackBtn.classList.replace('bg-primary', 'bg-tertiary');
+      } else {
+        backtrackBtn.innerHTML = `
+          <span class="material-symbols-outlined text-[24px]">pause_circle</span>
+          <span>Pause Backtrack</span>
+        `;
+        backtrackBtn.classList.replace('bg-tertiary', 'bg-primary');
+      }
+    });
+  }
+
+  // Interactive Presentation Demo: Toggle between Normal Backtrack vs Path Drift Warning
+  const demoToggleBtn = document.getElementById('btn-toggle-demo');
+  const demoIndicator = document.getElementById('demo-indicator');
+  const demoLabel = document.getElementById('demo-label');
+  const turnHudCard = document.getElementById('turn-hud-card');
+  const turnGlyph = document.getElementById('turn-glyph');
+  const turnBadge = document.getElementById('turn-badge');
+  const turnMainText = document.getElementById('turn-main-text');
+  const turnSubText = document.getElementById('turn-sub-text');
+  const mascotSpeech = document.getElementById('mascot-speech');
+  const statusStrip = document.getElementById('status-strip');
+  const statusIconBox = document.getElementById('status-icon-box');
+  const statusIcon = document.getElementById('status-icon');
+  const statusTitle = document.getElementById('status-title');
+  const statusSubtitle = document.getElementById('status-subtitle');
+  const statusBadge = document.getElementById('status-badge');
+  const hikerPosGroup = document.getElementById('hiker-position-group');
+  const hikerDot = document.getElementById('hiker-dot');
+  const uncertaintyRing = document.getElementById('uncertainty-ring');
+  const driftTrail = document.getElementById('drift-trail');
+
+  let isDrifting = false;
+
+  if (demoToggleBtn) {
+    demoToggleBtn.addEventListener('click', () => {
+      isDrifting = !isDrifting;
+      if (isDrifting) {
+        // Warning / Path Drift State
+        demoIndicator.classList.replace('bg-emerald-500', 'bg-amber-500');
+        demoLabel.textContent = 'Simulate Drift';
+        
+        turnHudCard.classList.replace('bg-primary-container', 'bg-amber-800');
+        turnGlyph.innerHTML = `<span class="material-symbols-outlined text-[28px]" style="font-variation-settings: 'FILL' 1;">u_turn_left</span>`;
+        turnGlyph.className = 'w-12 h-12 rounded-full bg-amber-200 flex items-center justify-center flex-shrink-0 text-amber-950 shadow-md';
+        turnBadge.className = 'flex items-center gap-space-xs font-label-sm text-label-sm uppercase tracking-wider text-amber-200 font-bold';
+        turnBadge.innerHTML = `<span class="inline-block w-2 h-2 rounded-full bg-amber-400 animate-ping"></span><span>DRIFT DETECTED • 24M OFF TRACK</span>`;
+        turnMainText.textContent = 'Make a U-Turn Left';
+        turnSubText.textContent = 'Retrace 24m to rejoin recorded path at Wooden Bridge marker';
+
+        mascotSpeech.textContent = '“Hold on! Our footsteps are diverging from the recorded trail. Let’s turn back 20 steps to reconnect!”';
+
+        statusStrip.classList.add('bg-amber-50', 'border-amber-300');
+        statusIconBox.className = 'w-7 h-7 rounded-full bg-amber-600 flex items-center justify-center text-white';
+        statusIcon.textContent = 'warning';
+        statusTitle.textContent = 'Track Divergence Warning';
+        statusSubtitle.textContent = 'Bearing deviated 38° south • Retrace to last recorded marker';
+        statusBadge.className = 'font-label-sm text-label-sm uppercase font-bold text-amber-900 px-2.5 py-1 bg-amber-200 rounded-full';
+        statusBadge.textContent = 'Off Track';
+
+        // Move hiker position off-trail
+        hikerPosGroup.setAttribute('transform', 'translate(35, -18)');
+        hikerDot.setAttribute('fill', '#ba1a1a');
+        uncertaintyRing.setAttribute('stroke', '#ba1a1a');
+        uncertaintyRing.setAttribute('fill', '#ba1a1a');
+        driftTrail.classList.remove('hidden');
+      } else {
+        // Revert to Normal Backtrack State
+        demoIndicator.classList.replace('bg-amber-500', 'bg-emerald-500');
+        demoLabel.textContent = 'On Track';
+        
+        turnHudCard.classList.replace('bg-amber-800', 'bg-primary-container');
+        turnGlyph.innerHTML = `<span class="material-symbols-outlined text-[28px]" style="font-variation-settings: 'FILL' 1;">turn_slight_left</span>`;
+        turnGlyph.className = 'w-12 h-12 rounded-full bg-primary-fixed flex items-center justify-center flex-shrink-0 text-on-primary-fixed shadow-md';
+        turnBadge.className = 'flex items-center gap-space-xs font-label-sm text-label-sm uppercase tracking-wider text-primary-fixed font-bold';
+        turnBadge.innerHTML = `<span class="inline-block w-2 h-2 rounded-full bg-primary-fixed animate-ping"></span><span>ACTIVE BACKTRACK · NEXT TURN 45M</span>`;
+        turnMainText.textContent = 'Turn slight left';
+        turnSubText.textContent = 'Rejoin recorded track at Wooden Bridge marker';
+
+        mascotSpeech.textContent = '“This way! Retracing our recorded steps back down toward Pine Ridge Trailhead.”';
+
+        statusStrip.classList.remove('bg-amber-50', 'border-amber-300');
+        statusIconBox.className = 'w-7 h-7 rounded-full bg-primary-container flex items-center justify-center text-on-primary';
+        statusIcon.textContent = 'timeline';
+        statusTitle.textContent = 'Recorded Track Guidance';
+        statusSubtitle.textContent = 'Estimated position ±15m uncertainty • Sensor-assisted inertial return';
+        statusBadge.className = 'font-label-sm text-label-sm uppercase font-bold text-primary px-2.5 py-1 bg-primary-fixed/50 rounded-full';
+        statusBadge.textContent = 'Guide Active';
+
+        hikerPosGroup.setAttribute('transform', 'translate(0, 0)');
+        hikerDot.setAttribute('fill', '#004eaa');
+        uncertaintyRing.setAttribute('stroke', '#004eaa');
+        uncertaintyRing.setAttribute('fill', '#004eaa');
+        driftTrail.classList.add('hidden');
+      }
+    });
+  }
+
+  // Compass Modal Interactive Toggle
+  const btnToggleCompass = document.getElementById('btn-toggle-compass');
+  const compassModal = document.getElementById('compass-modal-overlay');
+  const btnCloseCompass = document.getElementById('btn-close-compass');
+
+  if (btnToggleCompass && compassModal) {
+    btnToggleCompass.addEventListener('click', () => {
+      compassModal.classList.toggle('hidden');
+    });
+  }
+  if (btnCloseCompass && compassModal) {
+    btnCloseCompass.addEventListener('click', () => {
+      compassModal.classList.add('hidden');
+    });
+  }
+
+  // Safety Whistle Button Feedback
+  const whistleBtn = document.getElementById('btn-whistle');
+  if (whistleBtn) {
+    whistleBtn.addEventListener('click', () => {
+      const origText = whistleBtn.innerHTML;
+      whistleBtn.classList.add('bg-red-600', 'text-white');
+      whistleBtn.innerHTML = `<span class="material-symbols-outlined text-[20px] animate-bounce">campaign</span><span class="font-bold">Sounding Signal...</span>`;
+      setTimeout(() => {
+        whistleBtn.innerHTML = origText;
+        whistleBtn.classList.remove('bg-red-600', 'text-white');
+      }, 2000);
+    });
+  }
+</script></main>
+</body></html>
