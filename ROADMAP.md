@@ -46,19 +46,19 @@ Work through the phases **one at a time**. For each phase:
 
 | Phase | Status |
 |---|---|
-| Phase 1: Trail bundles | Done (branch `publish-bundles`, PR not merged yet) |
-| Phase 2: Publish the bundles | Built and tested locally, waiting for review and first deploy |
+| Phase 1: Trail bundles | Done (merged in PR #4) |
+| Phase 2: Publish the bundles | Done (merged in PR #4, live since 2026-10-24) |
 | Phase 3: Real trail data | Not started |
 
 The repo lives at `github.com/The-Crew-Mates/Pathfinder` (public).
 
-**Already built:**
+**Already built (all on `main`):**
 
-- **On `main`** (merged in PR #1):
+- **Database** (PR #1):
   - `db/schema.sql`: the `trails` and `landmarks` tables, data checks, and triggers that raise a trail's `version` whenever it or its landmarks change.
   - `scripts/create_db.py` and `scripts/seed.py`: create `pathfinder.db` and add 3 **placeholder** Nuuksio trails (made-up coordinates).
-- **Phase 1** (branch `publish-bundles`): `scripts/build_bundles.py` builds `public/index.json` + `public/trails/<slug>.json`. The format is documented in `docs/bundle-format.md`.
-- **Phase 2** (branch `publish-bundles`): `.github/workflows/publish-bundles.yml` builds and publishes `public/` on GitHub Pages at `https://the-crew-mates.github.io/Pathfinder/`.
+- **Phase 1:** `scripts/build_bundles.py` builds `public/index.json` + `public/trails/<slug>.json`. The format is documented in `docs/bundle-format.md`.
+- **Phase 2:** `.github/workflows/publish-bundles.yml` builds and publishes `public/` on GitHub Pages whenever `pathfinder.db`, `scripts/` or `db/` change on `main`. Live at https://the-crew-mates.github.io/Pathfinder/index.json.
 
 **Decisions made:**
 
