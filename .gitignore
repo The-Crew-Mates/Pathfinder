@@ -1,0 +1,10 @@
+# Local database: rebuild it any time with create_db.py + seed.py
+pathfinder.db
+pathfinder.db-journal
+
+# Python
+__pycache__/
+.venv/
+
+# macOS
+.DS_Store
