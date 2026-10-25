@@ -162,7 +162,7 @@ Top level:
 | `version` | integer | Save this with the bundle. Compare it with `version` in `index.json` to know when your copy is outdated. |
 | `updated_at` | string | When the trail last changed (UTC). |
 | `warnings` | list of strings | Safety warnings to show the hiker. Can be empty. |
-| `route` | list of points | The path in walking order, at least 2 points. Loop trails end where they start. Each point is `{"lat", "lon"}`, plus `"ele"` (elevation in metres above sea level) when the source has it. A phone's air-pressure sensor can be compared with `ele` to help place the hiker without GPS. |
+| `route` | list of points | The path in walking order, at least 2 points. Loop trails end where they start. Each point is `{"lat", "lon"}`, plus `"ele"` (elevation in metres above sea level) when the source has it. |
 
 Each landmark:
 
