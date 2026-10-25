@@ -16,8 +16,8 @@ export default defineConfig(({mode}) => {
         registerType: 'autoUpdate',
         includeAssets: ['icons/apple-touch-icon.png'],
         manifest: {
-          name: 'Topo – Offline Backcountry Navigation',
-          short_name: 'Topo',
+          name: 'Pathfinder – Offline Backcountry Navigation',
+          short_name: 'Pathfinder',
           description: 'Find your way back on the trail, even without GPS.',
           theme_color: '#0b1311',
           background_color: '#0b1311',

@@ -109,7 +109,7 @@ export function ScannerModal({
               }}
             />
 
-            {/* Topo Grid Pattern Overlay */}
+            {/* Topographic grid pattern overlay */}
             <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#aef1d2_1.5px,transparent_1.5px)] [background-size:18px_18px]" />
 
             {/* Viewfinder Reticle with Brackets */}

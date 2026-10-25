@@ -11,6 +11,7 @@ interface ConfidenceCalibrationScreenProps {
   onOpenScanner: (targetPost: string) => void;
   showSuccessBanner: boolean;
   onDismissSuccessBanner: () => void;
+  onOpenDebug: () => void;
 }
 
 export function ConfidenceCalibrationScreen({
@@ -21,6 +22,7 @@ export function ConfidenceCalibrationScreen({
   onOpenScanner,
   showSuccessBanner,
   onDismissSuccessBanner,
+  onOpenDebug,
 }: ConfidenceCalibrationScreenProps) {
   const [techOpen, setTechOpen] = useState<boolean>(false);
 
@@ -110,7 +112,7 @@ export function ConfidenceCalibrationScreen({
               </button>
               <div className="flex flex-col min-w-0">
                 <h1 className="font-headline-sm text-[16px] font-bold truncate leading-tight">
-                  Topo Confidence & Calibration
+                  Pathfinder Confidence & Calibration
                 </h1>
                 <span className="font-space text-[11px] text-[#92d4b7] uppercase tracking-wider">
                   Eagle Peak Sector · Offline Safe
@@ -588,7 +590,7 @@ export function ConfidenceCalibrationScreen({
             )}
           </div>
 
-          {/* Expressive Topo Mascot Card Holding QR Marker */}
+          {/* Expressive Pathfinder mascot card holding QR marker */}
           <div
             className={`relative rounded-3xl p-4 shadow-sm border flex items-center gap-3.5 overflow-hidden ${
               isDark ? 'bg-[#14201c] border-[#233a32]' : 'bg-white border-slate-200'
@@ -596,7 +598,7 @@ export function ConfidenceCalibrationScreen({
           >
             <div className="w-24 h-24 shrink-0 rounded-2xl overflow-hidden bg-[#fafaf7] p-1 flex items-center justify-center shadow-md border border-[#233a32]">
               <img
-                alt="Topo the friendly mole holding a wooden trail marker QR sign"
+                alt="The Pathfinder mole holding a wooden trail marker QR sign"
                 className="w-full h-full object-contain"
                 src={moleQrSign}
               />
@@ -606,7 +608,7 @@ export function ConfidenceCalibrationScreen({
               <div className="inline-flex items-center gap-1.5 mb-1">
                 <span className="material-symbols-outlined text-[16px] text-emerald-400">eco</span>
                 <span className="font-space text-[10px] font-bold text-[#aef1d2] uppercase tracking-wide">
-                  Topo's Trail Tip
+                  Pathfinder's Trail Tip
                 </span>
               </div>
               <p className="font-body-md text-[13px] font-semibold leading-snug">
@@ -693,6 +695,17 @@ export function ConfidenceCalibrationScreen({
             </div>
           </div>
         </div>
+
+        {/* Debug tools: saved beacons, test data and settings (DebugScreen.tsx) */}
+        <button
+          onClick={onOpenDebug}
+          className={`mx-auto mt-2 mb-28 px-4 py-2 rounded-full font-space text-[12px] font-semibold flex items-center gap-1.5 cursor-pointer ${
+            isDark ? 'text-[#8fa39b] hover:text-[#aef1d2]' : 'text-slate-500 hover:text-emerald-800'
+          }`}
+        >
+          <span className="material-symbols-outlined text-[16px]">developer_board</span>
+          Debug tools
+        </button>
       </main>
 
       {/* Primary Floating Glove-Friendly Trigger Button */}

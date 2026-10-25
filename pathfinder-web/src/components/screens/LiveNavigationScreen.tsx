@@ -110,7 +110,7 @@ export function LiveNavigationScreen({
               </button>
               <div className="flex flex-col">
                 <span className="font-space text-[10px] uppercase font-bold text-[#34D399] tracking-wider">
-                  Topo Live Navigation
+                  Pathfinder Live Navigation
                 </span>
                 <h1 className="font-headline-sm text-[17px] font-extrabold leading-tight">
                   High Ridge Trail
@@ -189,7 +189,7 @@ export function LiveNavigationScreen({
                   </filter>
                 </defs>
 
-                {/* Topo Contour Lines */}
+                {/* Topographic contour lines */}
                 <path
                   d="M-40 90 Q 60 70, 150 110 T 360 80 T 430 110"
                   stroke={isDark ? '#19352A' : '#cfddd8'}
@@ -447,7 +447,7 @@ export function LiveNavigationScreen({
               </span>
             </div>
 
-            {/* Top Mascot Speech Card (Topo Mole) */}
+            {/* Top Mascot Speech Card (Pathfinder mole) */}
             <div className="absolute top-2 inset-x-3 z-10 flex flex-col gap-2 pointer-events-none">
               <div
                 className={`pointer-events-auto w-full flex items-center gap-3 p-3 rounded-2xl backdrop-blur-2xl shadow-xl border transition-colors ${
@@ -462,7 +462,7 @@ export function LiveNavigationScreen({
                   }`}
                 >
                   <img
-                    alt="Topo Mole Mascot"
+                    alt="Pathfinder mole mascot"
                     className="w-full h-full object-cover transform scale-105"
                     src={moleMascot}
                   />
@@ -476,7 +476,7 @@ export function LiveNavigationScreen({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-0.5">
                     <span className="font-headline-sm text-[14px] font-extrabold flex items-center gap-1.5">
-                      Topo Scout
+                      Pathfinder Scout
                       <span className="w-2 h-2 rounded-full bg-[#34D399] animate-pulse" />
                     </span>
                     <span

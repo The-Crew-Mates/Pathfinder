@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { playSafetyWhistle, playChirpSound } from '../../utils/audio';
 import mapTexture from '../../assets/images/map-texture.png';
 import molePointing from '../../assets/images/mole-pointing.jpg';
-import topoLogo from '../../assets/images/topo-logo.jpg';
+import logoPlaceholder from '../../assets/images/logo-placeholder.jpg';
 
 interface ActiveBacktrackScreenProps {
   isDark: boolean;
@@ -82,9 +82,9 @@ export function ActiveBacktrackScreen({
                 <span className="material-symbols-outlined text-[22px]">arrow_back_ios_new</span>
               </button>
               <img
-                alt="Topo App Logo"
+                alt="Pathfinder logo"
                 className="h-7 w-auto object-contain"
-                src={topoLogo}
+                src={logoPlaceholder}
               />
               <h1 className="font-headline-sm text-[17px] font-extrabold truncate ml-1 leading-tight">
                 Live Navigation
@@ -226,7 +226,7 @@ export function ActiveBacktrackScreen({
                 </radialGradient>
               </defs>
 
-              {/* Night Mode Topo Contour Elevation Curves */}
+              {/* Night mode topographic contour elevation curves */}
               <path d="M-20 70 Q 70 30, 160 85 T 380 40" stroke={isDark ? '#1d3a30' : '#cfddd8'} strokeWidth="1.2" />
               <path d="M-20 120 Q 90 70, 180 130 T 380 95" stroke={isDark ? '#1d3a30' : '#cfddd8'} strokeWidth="1.2" />
               <path d="M-20 170 Q 110 115, 200 180 T 380 150" stroke={isDark ? '#224438' : '#bfc9c2'} strokeWidth="1.5" />
@@ -459,7 +459,7 @@ export function ActiveBacktrackScreen({
             {/* Mole Mascot pointing forward */}
             <div className="relative w-20 h-20 flex-shrink-0">
               <img
-                alt="Topo the Mole pointing forward"
+                alt="The Pathfinder mole pointing forward"
                 className="w-full h-full object-contain filter drop-shadow select-none"
                 src={molePointing}
               />
@@ -480,7 +480,7 @@ export function ActiveBacktrackScreen({
               <div className="flex items-center gap-1 text-[#34d399] mb-0.5">
                 <span className="material-symbols-outlined text-[15px]">pets</span>
                 <span className="font-space text-[10px] tracking-wider uppercase font-bold">
-                  Topo Navigator
+                  Pathfinder Navigator
                 </span>
               </div>
               <p

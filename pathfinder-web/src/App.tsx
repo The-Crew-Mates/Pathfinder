@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScreenId, DemoMode, Checkpoint } from './types/navigation';
 import { LiveNavigationScreen } from './components/screens/LiveNavigationScreen';
 import { ActiveBacktrackScreen } from './components/screens/ActiveBacktrackScreen';
@@ -11,10 +11,28 @@ import { ConfidenceCalibrationScreen } from './components/screens/ConfidenceCali
 import { CompassModal } from './components/CompassModal';
 import { ScannerModal } from './components/ScannerModal';
 import { CheckpointModal } from './components/CheckpointModal';
+import { DebugScreen } from './components/screens/DebugScreen';
 import { playChirpSound } from './utils/audio';
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState<ScreenId>('live-trail');
+  // The debug screen has its own address (#debug), so it can be bookmarked and
+  // opened directly while testing.
+  const [currentScreen, setCurrentScreen] = useState<ScreenId>(() =>
+    window.location.hash === '#debug' ? 'debug' : 'live-trail',
+  );
+
+  useEffect(() => {
+    const onHashChange = () => setCurrentScreen(window.location.hash === '#debug' ? 'debug' : 'live-trail');
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  useEffect(() => {
+    const wanted = currentScreen === 'debug' ? '#debug' : '';
+    if (window.location.hash !== wanted) {
+      history.replaceState(null, '', wanted || window.location.pathname + window.location.search);
+    }
+  }, [currentScreen]);
   const [demoMode, setDemoMode] = useState<DemoMode>('normal');
   const [isDark, setIsDark] = useState<boolean>(true);
 
@@ -72,7 +90,12 @@ export default function App() {
               onOpenScanner={handleOpenScanner}
               showSuccessBanner={showSuccessBanner}
               onDismissSuccessBanner={() => setShowSuccessBanner(false)}
+              onOpenDebug={() => setCurrentScreen('debug')}
             />
+          )}
+
+          {currentScreen === 'debug' && (
+            <DebugScreen isDark={isDark} onBack={() => setCurrentScreen('confidence')} />
           )}
         </div>
 
