@@ -1,7 +1,10 @@
 # Built by scripts/build_bundles.py. The GitHub Action builds and publishes
 # it, so it isn't committed. (pathfinder.db IS committed: it's the source of
 # truth for the trail data and its version numbers.)
-public/
+# The leading / means only the public/ folder at the top of the repo, not
+# other folders called public/ (like thack-main/public/, which holds the
+# frontend's images and must be committed).
+/public/
 
 # Downloads saved by scripts/import_trails.py, so re-runs don't ask the free
 # services (Lipas, Overpass) for the same data again
@@ -9,6 +12,13 @@ cache/
 
 # Temporary file SQLite makes while it's writing
 pathfinder.db-journal
+
+# Installed packages and Expo's local files. app/ has its own .gitignore
+# for these too, but that file only exists on branches that include the
+# app; this keeps them hidden on every branch.
+node_modules/
+.expo/
+expo-env.d.ts
 
 # Python
 __pycache__/
