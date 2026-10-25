@@ -31,7 +31,7 @@ This serves over HTTPS with a self-signed certificate, because phones only allow
 
 | Command | What it does |
 |---|---|
-| `npm test` | Unit tests (Vitest): the math (magnetic declination is checked against NOAA's official values), plus beacon storage (run with `fake-indexeddb`, including a close-and-reopen test and the version 1 → 2 upgrade), the beacon rules, the GPS tracker (with a fake GPS and fake timers), step counting and the compass (with made-up sensor signals), dead reckoning on made-up walks, and Retrace (reaching beacons, shortcuts, off track) |
+| `npm test` | Unit tests (Vitest): the math (magnetic declination is checked against NOAA's official values), plus beacon storage (run with `fake-indexeddb`, including a close-and-reopen test and the version 1 → 2 upgrade), the beacon rules, the GPS tracker (with a fake GPS and fake timers), step counting and the compass (with made-up sensor signals), dead reckoning on made-up walks, Retrace (reaching beacons, shortcuts, off track), and the sensor permissions (on a fake phone) |
 | `npm run lint` | Typecheck |
 | `npm run build` then `npm run check-offline` | Builds the app into `dist/`, then fails if anything in it loads from the internet |
 
@@ -73,11 +73,15 @@ Under thick trees or in a valley, GPS can drop out. Pathfinder then keeps estima
 - **The Confidence screen** shows the real numbers:
   - a 0–100 score from the ± accuracy (±5 m or better is 100, ±100 m or worse is 0) and a grade;
   - where the position comes from;
-  - which sensors work;
-  - what has been learned;
+  - which sensors work, plus a **Dead reckoning** tile: ready, learning your step length, or estimating;
+  - what has been learned (the step length is kept from earlier hikes);
   - the GPS timeline.
+  - **Without a hike,** **Check sensors** runs the step counter and compass for 15 seconds, so you can see they work before you go out.
+  - A sensor that says **TAP TO ALLOW** or **BLOCKED** can be tapped to turn it on; when it's blocked, the screen says how to unblock it on that phone.
+  - The tune button at the top opens the beacon and GPS settings.
 - **Sensors:**
-  - Android Chrome: works without asking.
+  - **The app always listens to the sensors,** and a sensor that sends readings counts as working, whatever the browser's permission answer said. Motion (steps) and compass are asked about separately, so one "no" doesn't switch off both.
+  - Android Chrome: newer versions answer from the site's **Motion sensors** setting without asking. If it's set to Block: tap the icon left of the web address → Permissions (or Site settings) → Motion sensors → Allow.
   - iPhone: Safari asks for "Motion & Orientation" when you tap Start hike. After a reload, the hike panel shows a button to allow it again.
   - Computers have neither sensor, so dead reckoning only works on a phone.
 

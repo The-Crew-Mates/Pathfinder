@@ -2,11 +2,15 @@
 // The logic lives in steps.ts and heading.ts; this file only connects them to
 // the browser's events.
 //
-// - Android Chrome: works without asking. The compass comes from the
-//   "deviceorientationabsolute" event, which is measured from north.
-// - iPhone Safari: the hiker must allow "Motion & Orientation" once, and the
-//   question can only be asked from a tap (requestPermission below). The
-//   compass comes from webkitCompassHeading.
+// - Permission: iPhone Safari, and newer Chrome on Android too, have a
+//   requestPermission() for motion and orientation. Safari asks the hiker (and
+//   only from a tap); Chrome doesn't ask, it answers from the site's "Motion
+//   sensors" setting. Either way the answer isn't the last word: the sensors
+//   are always listened to, and a sensor that sends readings counts as
+//   working, whatever the answer said. Motion and compass are asked separately,
+//   so one "no" doesn't switch off both.
+// - The compass comes from the "deviceorientationabsolute" event on Android
+//   (measured from north) and from webkitCompassHeading on iPhone.
 // - A computer usually has neither, so after a few seconds without readings
 //   the sensors count as unavailable.
 
@@ -18,10 +22,14 @@ export type SensorStatus =
   | 'waiting' // started, no reading yet
   | 'active' // readings are coming in
   | 'unavailable' // this phone or browser has no such sensor
-  | 'needs-permission' // iPhone: the hiker has to tap to allow it
-  | 'denied'; // the hiker said no
+  | 'needs-permission' // the hiker has to tap to allow it (iPhone)
+  | 'denied'; // refused: by the hiker, or by the site's settings
 
 export type SensorsStatus = { motion: SensorStatus; compass: SensorStatus };
+
+/** What requestPermission() said: 'unknown' when it hasn't been asked (or can only be asked from a tap). */
+export type PermissionAnswer = 'granted' | 'denied' | 'unknown';
+export type SensorPermission = { motion: PermissionAnswer; compass: PermissionAnswer };
 
 type Options = {
   onSteps: (count: number, time: number) => void;
@@ -33,29 +41,62 @@ type Options = {
 /** Seconds to wait for a first reading before calling a sensor unavailable. */
 const UNAVAILABLE_AFTER_MS = 4000;
 
-// iPhone's extra pieces, which aren't in the standard types.
-type PermissionRequester = { requestPermission?: () => Promise<'granted' | 'denied'> };
+// The permission pieces, which aren't in the standard types. Chrome's
+// orientation version takes `absolute`: true asks for the compass too.
+type PermissionRequester = { requestPermission?: (absolute?: boolean) => Promise<'granted' | 'denied'> };
 type IosOrientationEvent = DeviceOrientationEvent & { webkitCompassHeading?: number };
 
-/** True on iPhones and iPads, where motion and compass need the hiker's OK. */
+/** True where the browser has requestPermission() for the sensors (iPhone Safari, newer Chrome). */
 export function sensorsNeedPermission(): boolean {
   return typeof DeviceMotionEvent !== 'undefined' && typeof (DeviceMotionEvent as PermissionRequester).requestPermission === 'function';
 }
 
+/** True on iPhones and iPads (iPads can say they're a Mac, but Macs have no touch screen). */
+export function isIos(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+}
+
 /**
- * Ask for motion and compass access (iPhone). Must be called straight from a
- * tap, before any `await`, or Safari refuses. Returns true when allowed (and
- * on phones that don't need asking).
+ * Ask for motion and compass access. Must be called straight from a tap,
+ * before any `await`, or Safari refuses. Both questions are sent at once, and
+ * each gets its own answer.
  */
-export async function requestSensorPermission(): Promise<boolean> {
-  if (!sensorsNeedPermission()) return true;
-  try {
-    const motion = (DeviceMotionEvent as PermissionRequester).requestPermission!();
-    const orientation = (DeviceOrientationEvent as PermissionRequester).requestPermission?.() ?? Promise.resolve('granted');
-    return (await motion) === 'granted' && (await orientation) === 'granted';
-  } catch {
-    return false; // Safari throws if it wasn't called from a tap
-  }
+export async function requestSensorPermission(): Promise<SensorPermission> {
+  if (!sensorsNeedPermission()) return { motion: 'granted', compass: 'granted' };
+  const ask = (request: (() => Promise<'granted' | 'denied'>) | undefined): Promise<PermissionAnswer> => {
+    if (!request) return Promise.resolve('granted');
+    try {
+      // Safari throws when it isn't called from a tap: then it can still be asked later.
+      return request().then((answer) => (answer === 'granted' ? 'granted' : 'denied'), () => 'unknown');
+    } catch {
+      return Promise.resolve('unknown');
+    }
+  };
+  const motionRequester = DeviceMotionEvent as PermissionRequester;
+  const orientationRequester = (typeof DeviceOrientationEvent === 'undefined' ? {} : DeviceOrientationEvent) as PermissionRequester;
+  const motion = ask(motionRequester.requestPermission && (() => motionRequester.requestPermission!()));
+  const compass = ask(orientationRequester.requestPermission && (() => orientationRequester.requestPermission!(true)));
+  return { motion: await motion, compass: await compass };
+}
+
+/** A sensor's status when listening starts, before any reading has come in. */
+export function startingStatus(supported: boolean, answer: PermissionAnswer, needsPermission: boolean): SensorStatus {
+  if (!supported) return 'unavailable';
+  if (!needsPermission || answer === 'granted') return 'waiting';
+  return answer === 'denied' ? 'denied' : 'needs-permission';
+}
+
+/** After a few seconds with no reading: still waiting means there's no such sensor; a refusal stays a refusal. */
+export function statusAfterWaiting(status: SensorStatus): SensorStatus {
+  return status === 'waiting' ? 'unavailable' : status;
+}
+
+/** How to turn a blocked sensor back on, for this phone. */
+export function blockedSensorHelp(): string {
+  return isIos()
+    ? 'Safari asks only once per visit: reload the page, then tap Allow when it asks about Motion & Orientation.'
+    : 'In Chrome, tap the icon left of the web address, then Permissions (or Site settings) → Motion sensors → Allow. Then tap here again.';
 }
 
 export class MotionSensors {
@@ -70,28 +111,26 @@ export class MotionSensors {
     return this.status;
   }
 
-  /** Start listening. `allowed` is false when the iPhone permission is missing or was refused. */
-  start(allowed: boolean | 'unknown' = 'unknown'): void {
+  /**
+   * Start listening. `permission` is what requestSensorPermission() said, or
+   * 'unknown' when it couldn't be asked (no tap, e.g. after a reload).
+   */
+  start(permission: SensorPermission | 'unknown' = 'unknown'): void {
     this.stop();
     if (typeof window === 'undefined') return;
-    if (sensorsNeedPermission() && allowed !== true) {
-      const status = allowed === false ? 'denied' : 'needs-permission';
-      this.setStatus({ motion: status, compass: status });
-      return;
-    }
+    const answers = permission === 'unknown' ? { motion: 'unknown' as const, compass: 'unknown' as const } : permission;
+    const needsPermission = sensorsNeedPermission();
     this.running = true;
     this.detector = new StepDetector();
     this.setStatus({
-      motion: 'DeviceMotionEvent' in window ? 'waiting' : 'unavailable',
-      compass: 'DeviceOrientationEvent' in window ? 'waiting' : 'unavailable',
+      motion: startingStatus('DeviceMotionEvent' in window, answers.motion, needsPermission),
+      compass: startingStatus('DeviceOrientationEvent' in window, answers.compass, needsPermission),
     });
+    // Listened to even after a "no": if readings come anyway, the sensor works.
     window.addEventListener('devicemotion', this.handleMotion);
     window.addEventListener(this.orientationEvent(), this.handleOrientation as EventListener);
     this.timer = setTimeout(() => {
-      this.setStatus({
-        motion: this.status.motion === 'waiting' ? 'unavailable' : this.status.motion,
-        compass: this.status.compass === 'waiting' ? 'unavailable' : this.status.compass,
-      });
+      this.setStatus({ motion: statusAfterWaiting(this.status.motion), compass: statusAfterWaiting(this.status.compass) });
     }, UNAVAILABLE_AFTER_MS);
   }
 

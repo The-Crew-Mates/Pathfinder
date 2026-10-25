@@ -7,11 +7,12 @@ import { useEffect, useState } from 'react';
 
 import moleQrSign from '../../assets/images/mole-qr-sign.jpg';
 import { DEFAULT_SETTINGS } from '../../beacons/settings';
-import { formatAccuracy, formatTime } from '../../lib/format';
+import { formatAccuracy, formatBearing, formatTime } from '../../lib/format';
 import { useStore } from '../../lib/StoreProvider';
 import { confidenceGrade, confidenceScore } from '../../tracking/confidence';
 import { type TimelineEvent, useHike } from '../../tracking/HikeProvider';
-import type { SensorStatus } from '../../tracking/sensors';
+import { type SensorStatus, blockedSensorHelp } from '../../tracking/sensors';
+import { useSensorCheck } from '../../tracking/useSensorCheck';
 import { GpsStatusBanner } from '../hike/HikeUi';
 
 interface ConfidenceCalibrationScreenProps {
@@ -48,8 +49,15 @@ function timelineText(event: TimelineEvent): { title: string; detail: string; va
 
 export function ConfidenceCalibrationScreen({ isDark, onBack, onOpenDebug }: ConfidenceCalibrationScreenProps) {
   const [techOpen, setTechOpen] = useState<boolean>(false);
-  const { hike, gps, position, sensors, calibration, distanceSinceFixM, timeline, lastFix, steps } = useHike();
+  const { hike, gps, position, sensors: hikeSensors, calibration, distanceSinceFixM, timeline, lastFix, steps, enableSensors } =
+    useHike();
   const deadReckoningErrorPercent = useErrorPercent();
+  const savedStepLength = useLearnedStepLength();
+  // Without a hike, "Check sensors" runs the sensors for a moment instead.
+  const check = useSensorCheck();
+  const sensors = hike ? hikeSensors : check.status;
+  const turnOnSensors = () => void (hike ? enableSensors() : check.start());
+  const blocked = sensors.motion === 'denied' || sensors.compass === 'denied';
 
   const score = position ? confidenceScore(position.accuracyM) : 0;
   const grade = confidenceGrade(score);
@@ -83,26 +91,63 @@ export function ConfidenceCalibrationScreen({ isDark, onBack, onOpenDebug }: Con
           : gps === 'denied'
             ? { text: 'BLOCKED', tone: 'warn' }
             : { text: 'OFF', tone: 'off' };
-  const sources = [
+  // Dead reckoning needs both sensors; it's ready once it has learned the step length.
+  const sensorsWork = sensors.motion === 'active' && sensors.compass === 'active';
+  const stepLengthKnown = hike ? calibration.stepLengthSamples > 0 || savedStepLength !== null : savedStepLength !== null;
+  const deadReckoningBadge: Badge = estimated
+    ? { text: 'ESTIMATING', tone: 'good' }
+    : !hike
+      ? { text: 'OFF', tone: 'off' }
+      : !sensorsWork
+        ? { text: 'NEEDS SENSORS', tone: 'warn' }
+        : stepLengthKnown
+          ? { text: 'READY', tone: 'good' }
+          : { text: 'LEARNING', tone: 'warn' };
+  const sources: { icon: string; name: string; detail: string; badge: Badge; fixable?: boolean }[] = [
     {
       icon: 'directions_walk',
       name: 'Step counter',
-      detail: steps > 0 ? `${steps} steps this hike` : 'Counts steps from the motion sensor',
+      detail: hike
+        ? steps > 0
+          ? `${steps} steps this hike`
+          : 'Counts steps from the motion sensor'
+        : check.steps > 0
+          ? `${check.steps} steps counted`
+          : sensors.motion === 'active'
+            ? 'Working. Walk a few steps to try it'
+            : 'Counts steps from the motion sensor',
       badge: sensorBadge(sensors.motion),
+      fixable: sensors.motion === 'needs-permission' || sensors.motion === 'denied',
     },
     {
       icon: 'explore',
       name: 'Compass',
-      detail: calibration.headingSamples > 0 ? 'Walking direction learned' : 'Learning how you hold the phone',
+      detail: hike
+        ? calibration.headingSamples > 0
+          ? 'Walking direction learned'
+          : 'Learning how you hold the phone'
+        : check.heading !== null
+          ? `Pointing ${formatBearing(check.heading)} (magnetic)`
+          : 'Shows which way the phone points',
       badge: sensorBadge(sensors.compass),
+      fixable: sensors.compass === 'needs-permission' || sensors.compass === 'denied',
     },
     {
       icon: 'satellite_alt',
       name: 'Satellite GPS',
-      detail: lastFix ? `Last fix ${formatTime(lastFix.timestamp)}` : 'No fix yet',
+      detail: lastFix ? `Last fix ${formatTime(lastFix.timestamp)}` : hike ? 'No fix yet' : 'Starts with a hike',
       badge: gpsBadge,
     },
-    { icon: 'altitude', name: 'Barometer', detail: 'Not used yet', badge: { text: 'NOT USED YET', tone: 'off' } as Badge },
+    {
+      icon: 'timeline',
+      name: 'Dead reckoning',
+      detail: estimated
+        ? `${Math.round(distanceSinceFixM)} m since GPS`
+        : stepLengthKnown
+          ? `Step length ${(hike && calibration.stepLengthSamples > 0 ? calibration.stepLengthM : savedStepLength ?? calibration.stepLengthM).toFixed(2)} m`
+          : 'Learns your step length with GPS',
+      badge: deadReckoningBadge,
+    },
   ];
   const live = sources.filter((s) => s.badge.tone === 'good').length;
 
@@ -118,7 +163,7 @@ export function ConfidenceCalibrationScreen({ isDark, onBack, onOpenDebug }: Con
   const inner = isDark ? 'bg-[#182622] border-[#233a32]' : 'bg-slate-50 border-slate-200';
 
   const tip = !hike
-    ? '“Start a hike on the Live screen, and I’ll tell you here how sure I am of where we are.”'
+    ? '“Tap Check sensors to see if your step counter and compass work, then start a hike on the Live screen. I’ll tell you here how sure I am of where we are.”'
     : estimated
       ? `“No GPS right now, so I’m counting steps and following the compass. Every 100 m we walk makes me about ${deadReckoningErrorPercent} m less sure, until GPS is back.”`
       : calibration.stepLengthSamples === 0
@@ -159,8 +204,9 @@ export function ConfidenceCalibrationScreen({ isDark, onBack, onOpenDebug }: Con
 
             <div className="flex items-center gap-1.5 pr-1 shrink-0">
               <button
-                aria-label="Sensors Info"
-                onClick={() => setTechOpen((prev) => !prev)}
+                aria-label="Beacon and GPS settings"
+                title="Beacon and GPS settings"
+                onClick={onOpenDebug}
                 className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors border cursor-pointer ${
                   isDark
                     ? 'bg-[#162520] text-[#aef1d2] hover:bg-[#1e342c] border-[#233a32]'
@@ -278,15 +324,44 @@ export function ConfidenceCalibrationScreen({ isDark, onBack, onOpenDebug }: Con
                     <span className={`material-symbols-outlined text-[18px] ${source.badge.tone === 'off' ? 'text-slate-400' : 'text-emerald-400'}`}>
                       {source.icon}
                     </span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold text-right ${badgeClass(source.badge.tone)}`}>
-                      {source.badge.text}
-                    </span>
+                    {source.fixable ? (
+                      // A blocked or not-yet-allowed sensor: tap the badge to turn it on.
+                      <button
+                        onClick={turnOnSensors}
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold text-right underline underline-offset-2 cursor-pointer active:scale-95 ${badgeClass(source.badge.tone)}`}
+                      >
+                        {source.badge.text === 'BLOCKED' ? 'BLOCKED · RETRY' : source.badge.text}
+                      </button>
+                    ) : (
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold text-right ${badgeClass(source.badge.tone)}`}>
+                        {source.badge.text}
+                      </span>
+                    )}
                   </div>
                   <span className="font-body-sm text-[13px] font-bold">{source.name}</span>
                   <span className="font-space text-[10px] text-[#92d4b7]">{source.detail}</span>
                 </div>
               ))}
             </div>
+
+            {/* How to unblock a sensor on this phone */}
+            {blocked && (
+              <p className={`px-1 text-[12px] leading-snug ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>{blockedSensorHelp()}</p>
+            )}
+
+            {/* Without a hike: try the sensors before heading out */}
+            {!hike && (
+              <button
+                onClick={() => void check.start()}
+                disabled={check.running}
+                className={`w-full py-2.5 rounded-xl border font-space text-[13px] font-bold flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-60 ${
+                  isDark ? 'bg-[#182823] text-[#CFE4DC] border-[#24413a]' : 'bg-slate-100 text-slate-700 border-slate-200'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[16px]">sensors</span>
+                {check.running ? 'Checking… walk a few steps and turn around' : 'Check sensors'}
+              </button>
+            )}
           </div>
 
           {/* Technical Diagnostics Accordion */}
@@ -313,7 +388,12 @@ export function ConfidenceCalibrationScreen({ isDark, onBack, onOpenDebug }: Con
                 }`}
               >
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <Metric isDark={isDark} label="Step length" value={`${calibration.stepLengthM.toFixed(2)} m`} note={calibration.stepLengthSamples > 0 ? 'learned' : 'default'} />
+                  <Metric
+                    isDark={isDark}
+                    label="Step length"
+                    value={`${(calibration.stepLengthSamples > 0 ? calibration.stepLengthM : savedStepLength ?? calibration.stepLengthM).toFixed(2)} m`}
+                    note={calibration.stepLengthSamples > 0 ? 'learned' : savedStepLength !== null ? 'from earlier hikes' : 'default'}
+                  />
                   <Metric
                     isDark={isDark}
                     label="Phone vs. walking"
@@ -393,6 +473,17 @@ function useErrorPercent(): number {
     context?.store.getSettings().then((s) => setPercent(s.deadReckoningErrorPercent));
   }, [context, version]);
   return percent;
+}
+
+/** The step length learned on earlier hikes (saved on the phone), or null if nothing has been learned yet. */
+function useLearnedStepLength(): number | null {
+  const context = useStore();
+  const [metres, setMetres] = useState<number | null>(null);
+  const version = context?.version;
+  useEffect(() => {
+    context?.store.getLearnedStepLength().then(setMetres);
+  }, [context, version]);
+  return metres;
 }
 
 function Metric({ isDark, label, value, note }: { isDark: boolean; label: string; value: string; note: string }) {

@@ -4,6 +4,7 @@
 
 import { formatAccuracy, formatBearing } from '../lib/format';
 import { useHike } from '../tracking/HikeProvider';
+import { blockedSensorHelp } from '../tracking/sensors';
 import { useCompass } from '../tracking/useCompass';
 
 interface CompassModalProps {
@@ -164,6 +165,9 @@ export function CompassModal({ isOpen, onClose }: CompassModalProps) {
           >
             {status === 'denied' ? 'Try turning on the compass again' : 'Turn on compass'}
           </button>
+        )}
+        {heading === null && status === 'denied' && (
+          <p className="mt-2 max-w-xs text-center text-[12px] leading-snug text-amber-300">{blockedSensorHelp()}</p>
         )}
 
         {/* Secondary Telemetry Pills */}
