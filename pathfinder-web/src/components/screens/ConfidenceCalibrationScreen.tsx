@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from 'react';
 
-import moleQrSign from '../../assets/images/mole-qr-sign.jpg';
+import moleMascot from '../../assets/images/mole-mascot.jpg';
 import { DEFAULT_SETTINGS } from '../../beacons/settings';
 import { formatAccuracy, formatBearing, formatTime } from '../../lib/format';
 import { useStore } from '../../lib/StoreProvider';
@@ -437,7 +437,7 @@ export function ConfidenceCalibrationScreen({ isDark, onBack, onOpenDebug }: Con
           {/* Pathfinder mascot card */}
           <div className={`relative rounded-3xl p-4 shadow-sm border flex items-center gap-3.5 overflow-hidden ${panel}`}>
             <div className="w-24 h-24 shrink-0 rounded-2xl overflow-hidden bg-[#fafaf7] p-1 flex items-center justify-center shadow-md border border-[#233a32]">
-              <img alt="The Pathfinder mole holding a wooden trail marker sign" className="w-full h-full object-contain" src={moleQrSign} />
+              <img alt="The Pathfinder mole mascot" className="w-full h-full object-contain" src={moleMascot} />
             </div>
             <div className="flex-1 min-w-0 flex flex-col justify-center">
               <div className="inline-flex items-center gap-1.5 mb-1">
