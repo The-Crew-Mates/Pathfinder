@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { DemoMode } from '../../types/navigation';
 import { playChirpSound } from '../../utils/audio';
+import moleQrSign from '../../assets/images/mole-qr-sign.jpg';
 
 interface ConfidenceCalibrationScreenProps {
   isDark: boolean;
@@ -597,7 +598,7 @@ export function ConfidenceCalibrationScreen({
               <img
                 alt="Topo the friendly mole holding a wooden trail marker QR sign"
                 className="w-full h-full object-contain"
-                src="https://lh3.googleusercontent.com/aida/AEtjO1XT-5kR9wdlBClIo8qmdrlyUSRWP9Zlahyqh7WjnpHvwRlbW_ek4ihanMwHLe3okiNdRmWjjKGUiQAPLSd87ndHYyUoEPsLADyNCKTedYNarj0QUdU28VtpTixUCYNHN3CHpJjFob0WQP4Xe6Kw4mj4buP7_g2HCXK9ABihbtWs19ViLT-Xh5E5adMLBJCzjCpSciwd3-dZ7w_XkP0lTtgadnWMLf6Nv9GssqbhJDGaaRc9mkc_l2b-oQ"
+                src={moleQrSign}
               />
             </div>
 

@@ -48,9 +48,20 @@ Work through the phases **one at a time**. For each phase:
 |---|---|
 | Phase 1: Trail bundles | Done (merged in PR #4) |
 | Phase 2: Publish the bundles | Done (merged in PR #4, live since 2026-10-24) |
-| Phase 3: Real trail data | Built and tested locally (branch `real-trail-data`), waiting for review |
+| Phase 3: Real trail data | Done (merged in PR #6, live) |
+| Web app (beacon trail), step 1 of 6: offline base | Built and tested locally (branch `web-app`), waiting for review |
 
 The repo lives at `github.com/The-Crew-Mates/Pathfinder` (public).
+
+**Web app (beacon trail):** the frontend team's prototype in `thack-main/` is becoming the real app: an installable web app that works offline, published at `/Pathfinder/app/`. The steps:
+1. offline base: local fonts and images, PWA, math module, publishing
+2. beacon storage and the debug screen
+3. hike mode with GPS
+4. dead reckoning
+5. Retrace on the Backtrack screen
+6. polish
+
+**Decision:** a web app can't track with the screen off, so hike mode keeps the screen awake. The Expo version (`app/`, branch `beacon-trail`) is paused; its math module moved into the web app. See `thack-main/README.md`.
 
 **Already built:**
 

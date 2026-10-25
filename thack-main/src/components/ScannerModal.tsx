@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import confetti from 'canvas-confetti';
 import { playChirpSound } from '../utils/audio';
+import mapTexture from '../assets/images/map-texture.png';
 
 interface ScannerModalProps {
   isOpen: boolean;
@@ -104,7 +105,7 @@ export function ScannerModal({
             <div
               className="absolute inset-0 bg-cover bg-center opacity-40 filter contrast-125"
               style={{
-                backgroundImage: `radial-gradient(circle at 50% 50%, rgba(20, 50, 40, 0.4), rgba(5, 15, 12, 0.9)), url('https://lh3.googleusercontent.com/aida-public/AB6AXuCemcCbZMaQHwPnmuqPxjssJlz-8nBKT6NN2OoK75AGDLwZtMwId2_-5DCljVVzHfnSgwaQhWDcr9eTtHKekv_LOY8mS4pdyP6Isr1Wt_5ZYt_ctIvo0hAMn9WvNY2ebI0V0RctiebH0nl0aiC4c09WsurqWEb7wrIH5rHNpvgb1C9-_UaRZ0v84rl6ttH6WBVSb-V05HiFnznx-gyGRmhg1dYfiUwg6mRH7kUyOjr9UkS1pEqyNG98')`,
+                backgroundImage: `radial-gradient(circle at 50% 50%, rgba(20, 50, 40, 0.4), rgba(5, 15, 12, 0.9)), url('${mapTexture}')`,
               }}
             />
 

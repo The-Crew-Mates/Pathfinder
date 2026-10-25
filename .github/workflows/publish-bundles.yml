@@ -1,14 +1,15 @@
-# Tests the scripts, builds the trail bundles from pathfinder.db and publishes
-# them on GitHub Pages.
+# Tests and builds everything on the GitHub Pages site, then publishes it:
+#   - the trail bundles, from pathfinder.db   → /Pathfinder/index.json, /Pathfinder/trails/
+#   - the web app, from thack-main/           → /Pathfinder/app/
 #
-# - Push to main that changes the trail data, scripts or tests: test + build + publish.
+# - Push to main that changes any of it: test + build + publish.
 # - Pull request: test + build only, as a check (nothing is published).
 # - "Run workflow" button on the Actions tab: test + build + publish by hand.
 #
-# If a test or the build fails (for example a broken route point), nothing is
-# published and the live site keeps its last good version.
+# If a test, the build or the offline check fails, nothing is published and the
+# live site keeps its last good version.
 
-name: Publish trail bundles
+name: Publish bundles and web app
 
 on:
   push:
@@ -18,6 +19,7 @@ on:
       - scripts/**
       - db/**
       - tests/**
+      - thack-main/**
       - .github/workflows/publish-bundles.yml
   pull_request:
     paths:
@@ -25,6 +27,7 @@ on:
       - scripts/**
       - db/**
       - tests/**
+      - thack-main/**
       - .github/workflows/publish-bundles.yml
   workflow_dispatch:
 
@@ -39,16 +42,49 @@ jobs:
       - name: Get the repo
         uses: actions/checkout@v7
 
+      # --- Trail bundles -----------------------------------------------------
+
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
           python-version: "3.13"
 
-      - name: Run the tests
+      - name: Run the trail tests
         run: python -m unittest discover -s tests -v
 
       - name: Build the bundles
         run: python scripts/build_bundles.py
+
+      # --- Web app -----------------------------------------------------------
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: thack-main/package-lock.json
+
+      - name: Install the web app's packages
+        working-directory: thack-main
+        run: npm ci
+
+      - name: Typecheck the web app
+        working-directory: thack-main
+        run: npm run lint
+
+      - name: Run the web app tests
+        working-directory: thack-main
+        run: npm test
+
+      - name: Build the web app into public/app
+        working-directory: thack-main
+        run: npm run build -- --base=/Pathfinder/app/ --outDir ../public/app --emptyOutDir
+
+      - name: Check the web app works offline
+        working-directory: thack-main
+        run: npm run check-offline -- ../public/app
+
+      # --- Publish -----------------------------------------------------------
 
       - name: Hand the public/ folder to the deploy job
         if: github.event_name != 'pull_request'

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { DemoMode, Checkpoint } from '../../types/navigation';
 import { playChirpSound } from '../../utils/audio';
+import mapTexture from '../../assets/images/map-texture.png';
+import moleMascot from '../../assets/images/mole-mascot.jpg';
 
 interface LiveNavigationScreenProps {
   isDark: boolean;
@@ -146,7 +148,7 @@ export function LiveNavigationScreen({
               <div
                 className="absolute inset-0 bg-cover bg-center filter contrast-110 opacity-70"
                 style={{
-                  backgroundImage: `url('https://lh3.googleusercontent.com/aida-public/AB6AXuCemcCbZMaQHwPnmuqPxjssJlz-8nBKT6NN2OoK75AGDLwZtMwId2_-5DCljVVzHfnSgwaQhWDcr9eTtHKekv_LOY8mS4pdyP6Isr1Wt_5ZYt_ctIvo0hAMn9WvNY2ebI0V0RctiebH0nl0aiC4c09WsurqWEb7wrIH5rHNpvgb1C9-_UaRZ0v84rl6ttH6WBVSb-V05HiFnznx-gyGRmhg1dYfiUwg6mRH7kUyOjr9UkS1pEqyNG98')`,
+                  backgroundImage: `url('${mapTexture}')`,
                 }}
               />
             )}
@@ -462,7 +464,7 @@ export function LiveNavigationScreen({
                   <img
                     alt="Topo Mole Mascot"
                     className="w-full h-full object-cover transform scale-105"
-                    src="https://lh3.googleusercontent.com/aida/AEtjO1V0jGClxPz69VsvIIGPOFZPVyikr8Z1WTzvyaH9dmp7ctIHmbVQOM0pxLjFbxXvLtdhUjSFixkPRZ3W6aiXkI99j7GNSXnC2cVAqdbk7WP4FEF9SaWfjtLib0qzqtLRcLtZW0T1BAPKpf9RdAx89xjX0TjcJVo3YyZ43D5KPILCLJdBl7B2seqSsBxNaB4Pav-1V0C_0a-venwgpTd4Oqc6mmkJeCf8A1EHwcqtxEPv2HT35y_MQ5sWXw"
+                    src={moleMascot}
                   />
                   <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#10B981] flex items-center justify-center shadow">
                     <span className="material-symbols-outlined text-[12px] text-[#064E3B]">

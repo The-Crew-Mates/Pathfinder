@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { playSafetyWhistle, playChirpSound } from '../../utils/audio';
+import mapTexture from '../../assets/images/map-texture.png';
+import molePointing from '../../assets/images/mole-pointing.jpg';
+import topoLogo from '../../assets/images/topo-logo.jpg';
 
 interface ActiveBacktrackScreenProps {
   isDark: boolean;
@@ -81,7 +84,7 @@ export function ActiveBacktrackScreen({
               <img
                 alt="Topo App Logo"
                 className="h-7 w-auto object-contain"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuA2yV38XYx4w6o3d8OVIZVDtBSDcUxwVyGjWcjI1P5p28haWJ2FzJ4ozv5MkS7To9mb5KZSu6oonUaxCNinjneHBj3pCiglW3AHJTqjb_zqm6EoTik6tqg_HMckiHVFFywj3kLwKlto5OGsILlZY6s9l7Knj0-O-v0xnvJSysMVEB_gO25aZwBpxngIZ6m2yGw7rmvyXWfK6Di0RVP8YlU6P5yT9kzcfGjbyXsThgeYUCv4j65jrkAz"
+                src={topoLogo}
               />
               <h1 className="font-headline-sm text-[17px] font-extrabold truncate ml-1 leading-tight">
                 Live Navigation
@@ -199,7 +202,7 @@ export function ActiveBacktrackScreen({
               <div
                 className="absolute inset-0 bg-cover bg-center filter contrast-110 opacity-70"
                 style={{
-                  backgroundImage: `url('https://lh3.googleusercontent.com/aida-public/AB6AXuCemcCbZMaQHwPnmuqPxjssJlz-8nBKT6NN2OoK75AGDLwZtMwId2_-5DCljVVzHfnSgwaQhWDcr9eTtHKekv_LOY8mS4pdyP6Isr1Wt_5ZYt_ctIvo0hAMn9WvNY2ebI0V0RctiebH0nl0aiC4c09WsurqWEb7wrIH5rHNpvgb1C9-_UaRZ0v84rl6ttH6WBVSb-V05HiFnznx-gyGRmhg1dYfiUwg6mRH7kUyOjr9UkS1pEqyNG98')`,
+                  backgroundImage: `url('${mapTexture}')`,
                 }}
               />
             )}
@@ -458,7 +461,7 @@ export function ActiveBacktrackScreen({
               <img
                 alt="Topo the Mole pointing forward"
                 className="w-full h-full object-contain filter drop-shadow select-none"
-                src="https://lh3.googleusercontent.com/aida/AEtjO1VWBeATesmkqL2c6Bhlg5GZHkTB1OkRm-lQGETAn3vbJwYHVEqRCLtMcOypgLkeQtvbk4styiZrAFR6KSkvD8QYQfKqtvPJ2oAVWn4GNpb_YmnO5J3DL3wlkSyL4ZKKILu4SPDTj0O_IbiKmii1BFAgYzSDajqScHhJDPEnQFd2IBDQ8a_qWXW8kJPKGbg_CdwHo2VR6mUwh6ZE9GanC6kM04XHME3FwU5IpdkiL0gbLHjzHUlYe2XBDTU"
+                src={molePointing}
               />
             </div>
 
