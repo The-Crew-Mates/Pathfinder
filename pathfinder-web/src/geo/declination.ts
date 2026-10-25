@@ -6,7 +6,7 @@
 // it's about 10° east in 2026, so ignoring it would send a hiker 10° off course.
 //
 // This follows the method in NOAA's WMM2025 technical report. The tests check
-// it against NOAA's official test values (__tests__/declination.test.ts).
+// it against NOAA's official test values (tests/geo/declination.test.ts).
 
 import { normalizeDegrees, toDegrees, toRadians } from './angles';
 import { WMM_COEFFICIENTS, WMM_EPOCH, WMM_VALID_UNTIL } from './wmm2025';

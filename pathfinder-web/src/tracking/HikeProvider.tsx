@@ -40,6 +40,7 @@ import {
   positionGpsLost,
   positionHeading,
   positionManualDrop,
+  positionRestartRules,
   positionSteps,
   positionTick,
 } from './position';
@@ -104,8 +105,14 @@ type HikeContextValue = {
   setSimulateGpsLoss: (on: boolean) => void;
   /** iPhone: ask for motion and compass access (must be called from a tap). */
   enableSensors: () => Promise<void>;
-  /** Where the phone points, in degrees from TRUE north, or null without a recent compass reading. */
+  /**
+   * Where the phone points, in degrees from TRUE north, or null without a recent
+   * compass reading. Before the first GPS fix the declination isn't known yet,
+   * so until then it's really from magnetic north (see `declination`).
+   */
   phoneHeading: number | null;
+  /** Magnetic declination where the last GPS fix was (positive = east), or null before the first fix. */
+  declination: number | null;
   /** Retrace progress, or null when not retracing. */
   retrace: RetraceState | null;
   /** Where to go next while retracing, or null (not retracing, finished, or no position yet). */
@@ -513,6 +520,7 @@ export function HikeProvider({ children }: { children: ReactNode }) {
 
   const stopRetrace = useCallback(() => {
     if (!retracing.current) return;
+    tracking.current = positionRestartRules(tracking.current, latestBeacons.current.at(-1) ?? null);
     setRetrace(null);
     saveRetraceIndex(null);
   }, [setRetrace, saveRetraceIndex]);
@@ -554,6 +562,7 @@ export function HikeProvider({ children }: { children: ReactNode }) {
     setSimulateGpsLoss,
     enableSensors,
     phoneHeading,
+    declination: shown.lastFix ? shown.declination : null,
     retrace,
     guidance: retrace && position ? retraceGuidance(retrace, beacons, position, phoneHeading) : null,
     startRetrace,

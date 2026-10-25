@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { GpsStatusBanner, HikePanel, scoutMessage } from '../hike/HikeUi';
 import { RealMap } from '../map/RealMap';
+import { formatBearing } from '../../lib/format';
 import { useMapArea } from '../../map/mapArea';
 import { useHike } from '../../tracking/HikeProvider';
 import { playChirpSound } from '../../utils/audio';
@@ -82,7 +83,9 @@ export function LiveNavigationScreen({
               }`}
             >
               <span className="material-symbols-outlined text-[18px] text-[#86EFAC]">explore</span>
-              <span className="font-space text-[13px] tracking-wider font-bold">NE · 045°</span>
+              <span className="font-space text-[13px] tracking-wider font-bold">
+                {hikeState.phoneHeading === null ? 'Compass' : formatBearing(hikeState.phoneHeading)}
+              </span>
             </button>
           </div>
         </div>

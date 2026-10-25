@@ -103,7 +103,6 @@ export function ConfidenceCalibrationScreen({ isDark, onBack, onOpenDebug }: Con
       badge: gpsBadge,
     },
     { icon: 'altitude', name: 'Barometer', detail: 'Not used yet', badge: { text: 'NOT USED YET', tone: 'off' } as Badge },
-    { icon: 'qr_code_scanner', name: 'Trail markers', detail: 'Not used yet', badge: { text: 'NOT USED YET', tone: 'off' } as Badge },
   ];
   const live = sources.filter((s) => s.badge.tone === 'good').length;
 

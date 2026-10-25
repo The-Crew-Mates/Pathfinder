@@ -1,61 +1,41 @@
-import { useEffect, useState } from 'react';
+// The Compass pop-up: where the phone points, from the real compass
+// (useCompass.ts), with the declination and GPS accuracy underneath.
+// The design is the frontend team's.
+
+import { formatAccuracy, formatBearing } from '../lib/format';
+import { useHike } from '../tracking/HikeProvider';
+import { useCompass } from '../tracking/useCompass';
 
 interface CompassModalProps {
   isOpen: boolean;
   onClose: () => void;
-  heading?: number; // default heading degrees (e.g. 45)
-  elevation?: string;
-  incline?: string;
 }
 
-export function CompassModal({
-  isOpen,
-  onClose,
-  heading: initialHeading = 45,
-  elevation = '1,480 m',
-  incline = '+12% slope',
-}: CompassModalProps) {
-  const [heading, setHeading] = useState<number>(initialHeading);
-  const [deviceSensorAvailable, setDeviceSensorAvailable] = useState<boolean>(false);
+/** "10.3° E": a declination, east or west. */
+function formatDeclination(degrees: number): string {
+  return `${Math.abs(degrees).toFixed(1)}° ${degrees >= 0 ? 'E' : 'W'}`;
+}
 
-  useEffect(() => {
-    setHeading(initialHeading);
-  }, [initialHeading]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleOrientation = (e: DeviceOrientationEvent) => {
-      if (e.alpha !== null) {
-        setDeviceSensorAvailable(true);
-        // compass heading
-        let compass = e.alpha;
-        if ('webkitCompassHeading' in e) {
-          compass = (e as unknown as { webkitCompassHeading: number }).webkitCompassHeading;
-        }
-        setHeading(Math.round(compass));
-      }
-    };
-
-    if (window.DeviceOrientationEvent) {
-      window.addEventListener('deviceorientation', handleOrientation);
-    }
-
-    return () => {
-      window.removeEventListener('deviceorientation', handleOrientation);
-    };
-  }, [isOpen]);
+export function CompassModal({ isOpen, onClose }: CompassModalProps) {
+  const compass = useCompass(isOpen);
+  const { hike, declination, position } = useHike();
 
   if (!isOpen) return null;
 
-  // Cardinal direction label
-  const getCardinal = (deg: number) => {
-    const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-    const index = Math.round(((deg %= 360) < 0 ? deg + 360 : deg) / 45) % 8;
-    return directions[index];
-  };
-
-  const cardinal = getCardinal(heading);
+  const { heading, north, status } = compass;
+  const [degrees, point] = heading === null ? ['—', ''] : formatBearing(heading).split(' ');
+  const note =
+    heading !== null
+      ? north === 'true'
+        ? 'True north'
+        : 'Magnetic north'
+      : status === 'unavailable'
+        ? 'No compass on this device'
+        : status === 'denied'
+          ? 'Compass access was refused'
+          : status === 'needs-permission'
+            ? 'Compass is off'
+            : 'Waiting for the compass…';
 
   return (
     <div
@@ -149,57 +129,62 @@ export function CompassModal({
               W
             </text>
 
-            {/* Rotating Needle Pointer Indicator */}
-            <g
-              transform={`rotate(${heading} 150 150)`}
-              style={{ transition: 'transform 0.15s ease-out' }}
-            >
-              <polygon fill="#EF4444" points="150,45 142,150 158,150" />
-              <polygon fill="#94A3B8" points="150,255 142,150 158,150" />
-              <circle cx="150" cy="150" fill="#ffffff" r="6" />
-            </g>
+            {/* Rotating Needle Pointer Indicator: the way the phone points */}
+            {heading !== null && (
+              <g
+                transform={`rotate(${heading} 150 150)`}
+                style={{ transition: 'transform 0.15s ease-out' }}
+              >
+                <polygon fill="#EF4444" points="150,45 142,150 158,150" />
+                <polygon fill="#94A3B8" points="150,255 142,150 158,150" />
+                <circle cx="150" cy="150" fill="#ffffff" r="6" />
+              </g>
+            )}
           </svg>
 
           {/* Center Telemetry Display */}
           <div className="flex flex-col items-center text-center z-10 pointer-events-none">
             <span className="font-space text-[48px] font-extrabold text-white tracking-tight leading-none">
-              {heading}°
+              {degrees}
             </span>
-            <span className="text-emerald-400 font-headline-sm text-[22px] font-bold mt-1 tracking-widest">
-              {cardinal}
-            </span>
-            <span className="text-white/60 font-space text-[11px] uppercase tracking-wider mt-2">
-              {deviceSensorAvailable ? 'Device Gyro Sensor Active' : 'True North Calibrated'}
-            </span>
+            {point && (
+              <span className="text-emerald-400 font-headline-sm text-[22px] font-bold mt-1 tracking-widest">
+                {point}
+              </span>
+            )}
+            <span className="text-white/60 font-space text-[11px] uppercase tracking-wider mt-2">{note}</span>
           </div>
         </div>
 
-        {/* Manual Bearing Rotator for touch/desktop interaction */}
-        <div className="flex items-center gap-2 mt-4">
+        {/* iPhone: the compass needs the hiker's OK, asked from a tap */}
+        {heading === null && (status === 'needs-permission' || status === 'denied') && (
           <button
-            onClick={() => setHeading((prev) => (prev - 15 + 360) % 360)}
-            className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white font-space text-[12px] font-bold active:scale-95 transition-all"
+            onClick={() => void compass.enable()}
+            className="mt-4 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white font-space text-[13px] font-bold active:scale-95 transition-all cursor-pointer"
           >
-            -15°
+            {status === 'denied' ? 'Try turning on the compass again' : 'Turn on compass'}
           </button>
-          <span className="text-white/40 text-xs px-2 font-space">Drag or Tap to Test</span>
-          <button
-            onClick={() => setHeading((prev) => (prev + 15) % 360)}
-            className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white font-space text-[12px] font-bold active:scale-95 transition-all"
-          >
-            +15°
-          </button>
-        </div>
+        )}
 
         {/* Secondary Telemetry Pills */}
         <div className="grid grid-cols-2 gap-3 w-full max-w-xs mt-6">
           <div className="bg-white/10 rounded-2xl p-3 text-center border border-white/10">
-            <span className="block font-space text-[10px] text-white/60 uppercase">Elevation</span>
-            <span className="font-space text-[18px] font-bold text-white">{elevation}</span>
+            <span className="block font-space text-[10px] text-white/60 uppercase">Declination</span>
+            <span className="font-space text-[18px] font-bold text-white">
+              {declination === null ? '—' : formatDeclination(declination)}
+            </span>
+            {declination === null && <span className="block font-space text-[10px] text-white/50">needs a GPS fix</span>}
           </div>
           <div className="bg-white/10 rounded-2xl p-3 text-center border border-white/10">
-            <span className="block font-space text-[10px] text-white/60 uppercase">Incline</span>
-            <span className="font-space text-[18px] font-bold text-emerald-400">{incline}</span>
+            <span className="block font-space text-[10px] text-white/60 uppercase">
+              {position?.source === 'estimated' ? 'Estimate' : 'GPS'}
+            </span>
+            <span className="font-space text-[18px] font-bold text-emerald-400">
+              {position ? formatAccuracy(position.accuracyM) : '—'}
+            </span>
+            {!position && (
+              <span className="block font-space text-[10px] text-white/50">{hike ? 'waiting for GPS' : 'start a hike'}</span>
+            )}
           </div>
         </div>
       </div>

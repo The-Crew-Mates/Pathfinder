@@ -2,7 +2,7 @@
 
 The Pathfinder hiking app, built as an installable web app that works offline. It started as the frontend team's design prototype (made with Google AI Studio). It keeps that design, and gets real features step by step: beacons, GPS, dead reckoning and retracing your steps.
 
-**Live:** https://the-crew-mates.github.io/Pathfinder/app/ (once the `web-app` branch is merged).
+**Live:** https://the-crew-mates.github.io/Pathfinder/app/.
 
 ## What a web app can and can't do
 - **Works offline.** The first visit saves the whole app on the phone (it's a "PWA"), so it opens with no signal. On Android Chrome you can also choose **Add to home screen**.
@@ -50,7 +50,13 @@ Tap **Start hike** on the Live Navigation screen. While the hike runs, on whiche
 - **When you come back to the app** after the screen was off, it gets a GPS fix straight away and catches up on the time rule. Nothing is tracked while the screen is off.
 - **If the app is reloaded or reopened during a hike,** the hike carries on from its last beacon.
 
-On the Live screen, the **top bar**, the **mascot's message**, the **hike panel** and the **map** show real data. The "next checkpoint" card is still the prototype's illustration until later steps.
+On the Live screen, the **top bar**, the **mascot's message**, the **hike panel**, the **map** and the **compass button** show real data.
+
+## The compass
+The compass button on the Live screen shows where the phone points during a hike, e.g. "312° NW". Tap it for the Compass pop-up (`src/components/CompassModal.tsx`, `src/tracking/useCompass.ts`):
+- **During a hike** it measures from **true north** (what maps use), once the first GPS fix has given the magnetic declination (about 10° east in southern Finland). Before that, and **outside a hike**, it measures from **magnetic north**, like a real compass, and says so.
+- Underneath: the **declination** where you are, and the **GPS ±**.
+- On iPhone, outside a hike, tap **Turn on compass** once to allow it.
 
 ## Dead reckoning (when GPS is lost)
 Under thick trees or in a valley, GPS can drop out. Pathfinder then keeps estimating where you are from **your steps** (the phone's motion sensor) and **the compass**, the way sailors navigated before GPS (`src/tracking/position.ts`).
@@ -89,7 +95,8 @@ The **Backtrack** tab leads you back along your own beacons, newest first, to wh
   - the way back on the map, with the target beacon ringed;
   - the distance and time left (at 4.3 km/h), and how many beacons are left;
   - **off track:** if you get more than 25 m (or the position's ±, if bigger) further from the target than you'd already been, the card turns amber and says to turn around.
-- **While retracing, automatic beacons pause,** so the walk back doesn't add new ones. *Drop beacon here* still works. They start again when you stop retracing.
+- **While retracing, automatic beacons pause,** so the walk back doesn't add new ones. *Drop beacon here* still works. They start again when you stop retracing, counting from the last saved beacon: if that was more than 15 minutes ago, a new one drops right where you are.
+- **Without GPS at all** (location blocked, or a browser with no GPS), the screen says so and how to fix it; the beacons stay on the map to follow by eye.
 - **If the app is reloaded,** retracing carries on from the same beacon (it's saved with the hike).
 
 ## The map (demo)
@@ -136,7 +143,7 @@ Nothing is loaded from Google Fonts or image servers, so the app looks right off
 | Folder | What's in it |
 |---|---|
 | `src/components/screens/` | The three main screens: Live navigation, Active backtrack, Confidence and calibration |
-| `src/components/` | The Compass and QR scanner pop-ups (the scanner isn't opened anywhere yet) |
+| `src/components/` | The Compass pop-up |
 | `src/components/screens/DebugScreen.tsx` | The debug screen |
 | `src/geo/` | The math: distance, bearing, dead reckoning, magnetic declination (World Magnetic Model 2025) |
 | `src/beacons/` | Beacon types, settings, and the IndexedDB store |

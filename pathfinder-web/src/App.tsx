@@ -164,13 +164,7 @@ export default function App() {
         </nav>
 
         {/* Global Modals */}
-        <CompassModal
-          isOpen={compassOpen}
-          onClose={() => setCompassOpen(false)}
-          heading={45}
-          elevation="1,480 m"
-          incline="+12% slope"
-        />
+        <CompassModal isOpen={compassOpen} onClose={() => setCompassOpen(false)} />
       </div>
     </div>
   );

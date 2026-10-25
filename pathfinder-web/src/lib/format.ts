@@ -13,7 +13,8 @@ export function formatAccuracy(metres: number): string {
 
 /** "80 m", or "1.4 km" from a kilometre up. */
 export function formatDistance(metres: number): string {
-  return metres >= 1000 ? `${(metres / 1000).toFixed(1)} km` : `${Math.round(metres)} m`;
+  const rounded = Math.round(metres);
+  return rounded >= 1000 ? `${(metres / 1000).toFixed(1)} km` : `${rounded} m`;
 }
 
 /** "315° NW": a compass direction in degrees, with the nearest of the 8 compass points. */

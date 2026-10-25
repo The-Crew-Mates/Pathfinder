@@ -21,13 +21,17 @@ interface ActiveBacktrackScreenProps {
   onOpenCompass: () => void;
 }
 
-/** What the screen is showing: no hike, nothing to follow yet, ready, waiting for a position, guiding, or back at the start. */
-type Phase = 'no-hike' | 'no-beacons' | 'ready' | 'waiting' | 'guiding' | 'finished';
+/**
+ * What the screen is showing: no hike, nothing to follow yet, ready, waiting
+ * for a position, no way to get one (location blocked), guiding, or back at the start.
+ */
+type Phase = 'no-hike' | 'no-beacons' | 'ready' | 'waiting' | 'no-gps' | 'guiding' | 'finished';
 
-function phaseOf({ hike, beacons, retrace, guidance }: HikeContextValueForUi): Phase {
+function phaseOf({ hike, beacons, retrace, guidance, gps }: HikeContextValueForUi): Phase {
   if (!hike) return 'no-hike';
   if (retrace?.finished) return 'finished';
-  if (retrace) return guidance ? 'guiding' : 'waiting';
+  if (retrace && guidance) return 'guiding';
+  if (retrace) return gps === 'denied' || gps === 'unsupported' ? 'no-gps' : 'waiting';
   return beacons.length === 0 ? 'no-beacons' : 'ready';
 }
 
@@ -43,6 +47,10 @@ function navigatorMessage(phase: Phase, hike: HikeContextValueForUi): string {
       return `“${beacons.length} ${beacons.length === 1 ? 'beacon leads' : 'beacons lead'} back to the start. Tap Start retrace whenever you want to head back.”`;
     case 'waiting':
       return '“Waiting for our position… Stand in the open a moment so GPS can find us.”';
+    case 'no-gps':
+      return hike.gps === 'denied'
+        ? '“I can’t see where we are: location is blocked. Allow location for this site, then start the hike again. Until then, follow the beacons on the map.”'
+        : '“This browser can’t use GPS, so I can’t guide us. Follow the beacons on the map.”';
     case 'finished':
       return '“We made it! This is where the hike started.”';
   }
@@ -106,8 +114,15 @@ export function ActiveBacktrackScreen({ isDark, onBack }: ActiveBacktrackScreenP
 
   const card = isDark ? 'bg-[#14201c] border-[#233a32]' : 'bg-white border-slate-200';
   const big = `font-space text-[22px] font-bold ${isDark ? 'text-white' : 'text-slate-900'}`;
-  const mapButton =
-    'w-10 h-10 rounded-full bg-[#14201c]/90 border border-[#233a32] backdrop-blur-md shadow-md flex items-center justify-center text-[#aef1d2] hover:bg-[#1a2c26] active:scale-90 transition-transform cursor-pointer';
+  // The frosted buttons and pills on the map, in both themes (like the Live screen's).
+  const glass = isDark
+    ? 'bg-[#14201c]/90 border-[#233a32] text-[#aef1d2]'
+    : 'bg-white/95 border-slate-200 text-[#004330]';
+  const glassTitle = isDark ? 'text-[#f1f8f5]' : 'text-slate-900';
+  const glassDetail = isDark ? 'text-[#92d4b7]' : 'text-emerald-700';
+  const mapButton = `w-10 h-10 rounded-full border backdrop-blur-md shadow-md flex items-center justify-center active:scale-90 transition-transform cursor-pointer ${glass} ${
+    isDark ? 'hover:bg-[#1a2c26]' : 'hover:bg-slate-50'
+  }`;
 
   // The turn card at the top.
   const n = g ? g.targetIndex + 1 : 0;
@@ -130,6 +145,16 @@ export function ActiveBacktrackScreen({ isDark, onBack }: ActiveBacktrackScreenP
         ? { label: 'Retrace complete', title: 'You’re back at the start', detail: 'Beacon 1, where the hike began.', next: null }
         : phase === 'waiting'
           ? { label: 'Retrace', title: 'Finding your position', detail: 'Guidance starts with the first GPS fix.', next: null }
+          : phase === 'no-gps'
+          ? {
+              label: 'Retrace · no GPS',
+              title: hikeState.gps === 'denied' ? 'Location is blocked' : 'No GPS in this browser',
+              detail:
+                hikeState.gps === 'denied'
+                  ? 'Allow location for this site, then start the hike again.'
+                  : 'Guidance needs GPS. Your beacons are still on the map.',
+              next: null,
+            }
           : phase === 'ready'
             ? {
                 label: `Ready · ${beacons.length} ${beacons.length === 1 ? 'beacon' : 'beacons'}`,
@@ -242,7 +267,7 @@ export function ActiveBacktrackScreen({ isDark, onBack }: ActiveBacktrackScreenP
                   </span>
                 ) : (
                   <span className="material-symbols-outlined text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                    {phase === 'finished' ? 'check_circle' : phase === 'ready' ? 'undo' : phase === 'waiting' ? 'my_location' : 'flag'}
+                    {phase === 'finished' ? 'check_circle' : phase === 'ready' ? 'undo' : phase === 'waiting' ? 'my_location' : phase === 'no-gps' ? 'gps_off' : 'flag'}
                   </span>
                 )}
               </div>
@@ -350,19 +375,19 @@ export function ActiveBacktrackScreen({ isDark, onBack }: ActiveBacktrackScreenP
             </div>
 
             {/* Zoom */}
-            <div className="absolute right-3 bottom-3 z-20 flex flex-col rounded-full overflow-hidden bg-[#14201c]/90 border border-[#233a32] backdrop-blur-md shadow-md">
+            <div className={`absolute right-3 bottom-3 z-20 flex flex-col rounded-full overflow-hidden border backdrop-blur-md shadow-md ${glass}`}>
               <button
                 aria-label="Zoom In"
                 onClick={() => handleZoom(1.5)}
-                className="w-10 h-9 flex items-center justify-center text-[#aef1d2] active:scale-90 transition-transform cursor-pointer"
+                className="w-10 h-9 flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[20px]">add</span>
               </button>
-              <div className="w-full h-px bg-[#233a32]" />
+              <div className={`w-full h-px ${isDark ? 'bg-[#233a32]' : 'bg-slate-200'}`} />
               <button
                 aria-label="Zoom Out"
                 onClick={() => handleZoom(1 / 1.5)}
-                className="w-10 h-9 flex items-center justify-center text-[#aef1d2] active:scale-90 transition-transform cursor-pointer"
+                className="w-10 h-9 flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[20px]">remove</span>
               </button>
@@ -370,13 +395,13 @@ export function ActiveBacktrackScreen({ isDark, onBack }: ActiveBacktrackScreenP
 
             {/* Floating Destination Pill: the target beacon */}
             {(phase === 'guiding' || phase === 'finished') && (
-              <div className="absolute left-3 top-3 z-10 bg-[#14201c]/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-md flex items-center gap-2 border border-[#233a32] max-w-[70%]">
+              <div className={`absolute left-3 top-3 z-10 backdrop-blur-md px-3 py-1.5 rounded-full shadow-md flex items-center gap-2 border max-w-[70%] ${glass}`}>
                 <span className="material-symbols-outlined text-[#34d399] text-[18px]">flag</span>
                 <div className="flex flex-col min-w-0">
-                  <span className="font-headline-sm text-[12px] leading-tight font-bold text-[#f1f8f5] truncate">
+                  <span className={`font-headline-sm text-[12px] leading-tight font-bold truncate ${glassTitle}`}>
                     {phase === 'finished' ? 'Start of the hike' : `Beacon ${n}`}
                   </span>
-                  <span className="font-space text-[10px] text-[#92d4b7] font-semibold truncate">
+                  <span className={`font-space text-[10px] font-semibold truncate ${glassDetail}`}>
                     {phase === 'finished'
                       ? 'You made it back'
                       : `${formatDistance(g!.distanceM)} · ${formatBearing(g!.bearing)}`}
@@ -387,11 +412,11 @@ export function ActiveBacktrackScreen({ isDark, onBack }: ActiveBacktrackScreenP
 
             {/* Route Direction Badge */}
             {retrace && !retrace.finished && (
-              <div className="absolute left-3 bottom-6 z-10 bg-[#14201c]/90 backdrop-blur-md px-3 py-1 rounded-full shadow-sm flex items-center gap-1.5 font-space text-[11px] text-[#cbdad4] border border-[#233a32]">
-                <span className="material-symbols-outlined text-amber-400 text-[14px]">
+              <div className={`absolute left-3 bottom-6 z-10 backdrop-blur-md px-3 py-1 rounded-full shadow-sm flex items-center gap-1.5 font-space text-[11px] border ${glass}`}>
+                <span className="material-symbols-outlined text-amber-500 text-[14px]">
                   {position?.source === 'estimated' ? 'sensors_off' : 'satellite_alt'}
                 </span>
-                <span className="font-medium text-[#e1ede8]">
+                <span className={`font-medium ${glassTitle}`}>
                   {position?.source === 'estimated' ? 'Following beacons on an estimate' : 'Following your beacons back'}
                 </span>
               </div>
@@ -561,7 +586,7 @@ export function ActiveBacktrackScreen({ isDark, onBack }: ActiveBacktrackScreenP
                   : 'bg-[#175c45]/70 text-[#aef1d2] border-[#233a32]'
               }`}
             >
-              {warn ? 'Off Track' : phase === 'guiding' ? 'Guide Active' : phase === 'finished' ? 'Done' : phase === 'ready' ? 'Ready' : phase === 'waiting' ? 'Waiting' : 'Idle'}
+              {warn ? 'Off Track' : phase === 'guiding' ? 'Guide Active' : phase === 'finished' ? 'Done' : phase === 'ready' ? 'Ready' : phase === 'waiting' ? 'Waiting' : phase === 'no-gps' ? 'No GPS' : 'Idle'}
             </span>
           </div>
 
