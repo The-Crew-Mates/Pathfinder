@@ -36,14 +36,18 @@ function setup(answers: Answer[]) {
   const geo = new FakeGeolocation();
   geo.answers = answers;
   const fixes: Fix[] = [];
+  const hidden: Fix[] = [];
+  const readings: Fix[] = [];
   const statuses: { status: GpsStatus; wasLost: boolean }[] = [];
   const tracker = new GpsTracker({
     geolocation: geo as unknown as Geolocation,
     settings: () => DEFAULT_SETTINGS, // fix every 60 s, lost after 90 s, retry every 3 min
     onFix: (f) => fixes.push(f),
+    onHiddenFix: (f) => hidden.push(f),
+    onReading: (f) => readings.push(f),
     onStatus: (status, wasLost) => statuses.push({ status, wasLost }),
   });
-  return { geo, tracker, fixes, statuses };
+  return { geo, tracker, fixes, hidden, readings, statuses };
 }
 
 const seconds = (s: number) => vi.advanceTimersByTime(s * 1000);
@@ -138,5 +142,30 @@ describe('GpsTracker', () => {
     });
     tracker.start();
     expect(statuses).toEqual(['unsupported']);
+  });
+
+  it('simulated loss: lost straight away, positions hidden but still read every minute, then GPS is back', () => {
+    const { geo, tracker, fixes, hidden, readings, statuses } = setup([
+      { accuracy: 8 },
+      { accuracy: 8 },
+      { accuracy: 90 },
+      { accuracy: 8 },
+      { accuracy: 8 },
+    ]);
+    tracker.start();
+    seconds(2);
+    tracker.simulateLoss(true);
+    expect(statuses.at(-1)).toEqual({ status: 'lost', wasLost: false });
+    seconds(62); // the next fix (asked at 62 s): hidden
+    expect(fixes).toHaveLength(1);
+    expect(hidden).toHaveLength(1);
+    seconds(62); // a rough one (asked at 124 s): neither passed on nor hidden, but recorded
+    expect(hidden).toHaveLength(1);
+    expect(readings).toHaveLength(3);
+    expect(geo.requests).toBe(3); // still once a minute, not every 3 minutes
+    tracker.simulateLoss(false); // asks at once
+    seconds(2);
+    expect(fixes).toHaveLength(2);
+    expect(statuses.at(-1)).toEqual({ status: 'good', wasLost: true });
   });
 });

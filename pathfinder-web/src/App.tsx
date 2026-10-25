@@ -4,13 +4,11 @@
  */
 
 import { useEffect, useState } from 'react';
-import { ScreenId, DemoMode, Checkpoint } from './types/navigation';
+import { ScreenId } from './types/navigation';
 import { LiveNavigationScreen } from './components/screens/LiveNavigationScreen';
 import { ActiveBacktrackScreen } from './components/screens/ActiveBacktrackScreen';
 import { ConfidenceCalibrationScreen } from './components/screens/ConfidenceCalibrationScreen';
 import { CompassModal } from './components/CompassModal';
-import { ScannerModal } from './components/ScannerModal';
-import { CheckpointModal } from './components/CheckpointModal';
 import { DebugScreen } from './components/screens/DebugScreen';
 import { playChirpSound } from './utils/audio';
 
@@ -33,26 +31,10 @@ export default function App() {
       history.replaceState(null, '', wanted || window.location.pathname + window.location.search);
     }
   }, [currentScreen]);
-  const [demoMode, setDemoMode] = useState<DemoMode>('normal');
   const [isDark, setIsDark] = useState<boolean>(true);
 
   // Modals state
   const [compassOpen, setCompassOpen] = useState<boolean>(false);
-  const [scannerOpen, setScannerOpen] = useState<boolean>(false);
-  const [scannerTarget, setScannerTarget] = useState<string>('#14 Eagle Peak Spur');
-  const [activeCheckpoint, setActiveCheckpoint] = useState<Checkpoint | null>(null);
-  const [showSuccessBanner, setShowSuccessBanner] = useState<boolean>(false);
-
-  const handleOpenScanner = (target: string) => {
-    playChirpSound();
-    setScannerTarget(target);
-    setScannerOpen(true);
-  };
-
-  const handleCalibrationSuccess = () => {
-    setDemoMode('calibrated');
-    setShowSuccessBanner(true);
-  };
 
   return (
     <div className={`min-h-screen w-full flex flex-col justify-start items-center ${isDark ? 'bg-[#080d0c]' : 'bg-[#e0ece7]'}`}>
@@ -64,12 +46,8 @@ export default function App() {
           {currentScreen === 'live-trail' && (
             <LiveNavigationScreen
               isDark={isDark}
-              demoMode={demoMode}
-              onSetDemoMode={setDemoMode}
               onOpenCompass={() => setCompassOpen(true)}
-              onNavigateToBacktrack={() => setCurrentScreen('backtrack')}
               onNavigateToConfidence={() => setCurrentScreen('confidence')}
-              onInspectCheckpoint={(chk) => setActiveCheckpoint(chk)}
             />
           )}
 
@@ -84,12 +62,7 @@ export default function App() {
           {currentScreen === 'confidence' && (
             <ConfidenceCalibrationScreen
               isDark={isDark}
-              demoMode={demoMode}
-              onSetDemoMode={setDemoMode}
               onBack={() => setCurrentScreen('live-trail')}
-              onOpenScanner={handleOpenScanner}
-              showSuccessBanner={showSuccessBanner}
-              onDismissSuccessBanner={() => setShowSuccessBanner(false)}
               onOpenDebug={() => setCurrentScreen('debug')}
             />
           )}
@@ -197,20 +170,6 @@ export default function App() {
           heading={45}
           elevation="1,480 m"
           incline="+12% slope"
-        />
-
-        <ScannerModal
-          isOpen={scannerOpen}
-          targetName={scannerTarget}
-          onClose={() => setScannerOpen(false)}
-          onCalibrationSuccess={handleCalibrationSuccess}
-          isDark={isDark}
-        />
-
-        <CheckpointModal
-          checkpoint={activeCheckpoint}
-          onClose={() => setActiveCheckpoint(null)}
-          isDark={isDark}
         />
       </div>
     </div>

@@ -39,3 +39,19 @@ export function circularMean(degrees: readonly number[]): number | null {
   if (Math.hypot(x, y) < 1e-9) return null;
   return normalizeDegrees(toDegrees(Math.atan2(y, x)));
 }
+
+/**
+ * How closely several angles agree, from 0 (all over the place) to 1 (all the
+ * same). It's the length of the averaged arrows from circularMean. Walking a
+ * straight line gives about 0.95 or more; a zig-zag or a U-turn much less.
+ */
+export function meanResultantLength(degrees: readonly number[]): number {
+  if (degrees.length === 0) return 0;
+  let x = 0;
+  let y = 0;
+  for (const d of degrees) {
+    x += Math.cos(toRadians(d));
+    y += Math.sin(toRadians(d));
+  }
+  return Math.hypot(x, y) / degrees.length;
+}

@@ -14,7 +14,7 @@ function minutesAgo(timestamp: number): string {
 
 /** The thin bar at the very top: what GPS is doing right now, and the battery. */
 export function GpsStatusBanner({ isDark }: { isDark: boolean }) {
-  const { hike, gps, gpsBack, lastFix, battery } = useHike();
+  const { hike, gps, gpsBack, lastFix, position, battery } = useHike();
 
   const tone: 'neutral' | 'good' | 'warn' | 'bad' = !hike
     ? 'neutral'
@@ -30,7 +30,9 @@ export function GpsStatusBanner({ isDark }: { isDark: boolean }) {
       : gps === 'searching'
         ? 'Finding GPS…'
         : gps === 'lost'
-          ? `GPS lost · last fix ${lastFix ? minutesAgo(lastFix.timestamp) : 'never'}`
+          ? position?.source === 'estimated'
+            ? `GPS lost · estimated ${formatAccuracy(position.accuracyM)}`
+            : `GPS lost · last fix ${lastFix ? minutesAgo(lastFix.timestamp) : 'never'}`
           : gps === 'denied'
             ? 'Location blocked'
             : gps === 'unsupported'
@@ -62,11 +64,13 @@ export function GpsStatusBanner({ isDark }: { isDark: boolean }) {
 }
 
 /** What the mascot says, and the label next to its name, for the current hike state. */
-export function scoutMessage(state: Pick<HikeContextValueForUi, 'hike' | 'gps' | 'gpsBack' | 'beacons'>): {
+export function scoutMessage(
+  state: Pick<HikeContextValueForUi, 'hike' | 'gps' | 'gpsBack' | 'beacons' | 'position' | 'sensors'>,
+): {
   badge: string;
   text: string;
 } {
-  const { hike, gps, gpsBack, beacons } = state;
+  const { hike, gps, gpsBack, beacons, position, sensors } = state;
   if (!hike) {
     return { badge: 'Ready', text: '“Start a hike and I’ll drop beacons along the way, so we can always find our way back.”' };
   }
@@ -75,6 +79,12 @@ export function scoutMessage(state: Pick<HikeContextValueForUi, 'hike' | 'gps' |
   }
   if (gps === 'unsupported') return { badge: 'No GPS', text: '“This browser can’t use GPS, so I can’t drop beacons here.”' };
   if (gps === 'searching') return { badge: 'Finding GPS', text: '“Looking for satellites… Stand in the open for a moment if you can.”' };
+  if (gps === 'lost' && position?.source === 'estimated' && sensors.motion === 'active') {
+    return {
+      badge: 'Estimating',
+      text: `“No GPS, so I’m counting your steps and following the compass. We’re within about ${Math.round(position.accuracyM)} m of the dot.”`,
+    };
+  }
   if (gps === 'lost') return { badge: 'GPS lost', text: '“I’ve lost GPS. Your beacons are safe, and I’ll keep looking for a signal.”' };
   if (gpsBack) return { badge: 'GPS is back', text: '“GPS is back! Our position is precise again.”' };
   const n = beacons.length;
@@ -83,7 +93,8 @@ export function scoutMessage(state: Pick<HikeContextValueForUi, 'hike' | 'gps' |
 
 /** Start or end a hike, see how it's going, and drop a beacon by hand. */
 export function HikePanel({ isDark }: { isDark: boolean }) {
-  const { hike, beacons, gps, lastFix, wakeLock, problem, startHike, endHike, dropBeaconHere } = useHike();
+  const { hike, beacons, gps, lastFix, position, sensors, wakeLock, problem, startHike, endHike, dropBeaconHere, enableSensors } =
+    useHike();
   const [confirmingEnd, setConfirmingEnd] = useState(false);
   const [dropping, setDropping] = useState(false);
   const [note, setNote] = useState('');
@@ -146,10 +157,27 @@ export function HikePanel({ isDark }: { isDark: boolean }) {
           <span className={`${value} truncate`}>{last ? `${formatTime(last.timestamp)} · ${last.reason}` : '—'}</span>
         </div>
         <div className="flex flex-col">
-          <span className={label}>GPS</span>
-          <span className={value}>{gps === 'good' && lastFix ? formatAccuracy(lastFix.accuracyM) : gps === 'lost' ? 'Lost' : '…'}</span>
+          <span className={label}>{position?.source === 'estimated' ? 'Estimated' : 'GPS'}</span>
+          <span className={value}>
+            {position?.source === 'estimated'
+              ? formatAccuracy(position.accuracyM)
+              : gps === 'good' && lastFix
+                ? formatAccuracy(lastFix.accuracyM)
+                : gps === 'lost'
+                  ? 'Lost'
+                  : '…'}
+          </span>
         </div>
       </div>
+
+      {(sensors.motion === 'needs-permission' || sensors.motion === 'denied') && (
+        <button className={secondary} onClick={() => void enableSensors()}>
+          <span className="material-symbols-outlined text-[16px]">directions_walk</span>
+          {sensors.motion === 'denied'
+            ? 'Motion sensors blocked: tap to try again'
+            : 'Tap to turn on step counting and the compass'}
+        </button>
+      )}
 
       {dropping ? (
         <div className="flex flex-col gap-2">

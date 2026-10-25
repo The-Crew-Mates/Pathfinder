@@ -31,7 +31,7 @@ This serves over HTTPS with a self-signed certificate, because phones only allow
 
 | Command | What it does |
 |---|---|
-| `npm test` | Unit tests (Vitest): the math (magnetic declination is checked against NOAA's official values), plus beacon storage (run with `fake-indexeddb`, including a close-and-reopen test), the beacon rules, and the GPS tracker (with a fake GPS and fake timers) |
+| `npm test` | Unit tests (Vitest): the math (magnetic declination is checked against NOAA's official values), plus beacon storage (run with `fake-indexeddb`, including a close-and-reopen test and the version 1 → 2 upgrade), the beacon rules, the GPS tracker (with a fake GPS and fake timers), step counting and the compass (with made-up sensor signals), and dead reckoning on made-up walks |
 | `npm run lint` | Typecheck |
 | `npm run build` then `npm run check-offline` | Builds the app into `dist/`, then fails if anything in it loads from the internet |
 
@@ -50,7 +50,32 @@ Tap **Start hike** on the Live Navigation screen. While the hike runs, on whiche
 - **When you come back to the app** after the screen was off, it gets a GPS fix straight away and catches up on the time rule. Nothing is tracked while the screen is off.
 - **If the app is reloaded or reopened during a hike,** the hike carries on from its last beacon.
 
-On the Live screen, the **top bar**, the **mascot's message**, the **hike panel** and the **map** show real data. The "next checkpoint" card and the confidence card are still the prototype's illustration until later steps.
+On the Live screen, the **top bar**, the **mascot's message**, the **hike panel** and the **map** show real data. The "next checkpoint" card is still the prototype's illustration until later steps.
+
+## Dead reckoning (when GPS is lost)
+Under thick trees or in a valley, GPS can drop out. Pathfinder then keeps estimating where you are from **your steps** (the phone's motion sensor) and **the compass**, the way sailors navigated before GPS (`src/tracking/position.ts`).
+- **It always runs.** Each good GPS fix restarts the estimate from that fix, and each step moves it forward. So when GPS drops, the estimate already includes the steps since the last fix.
+- **It learns while GPS works.** Between two GPS fixes it compares:
+  - the distance GPS measured with your step count, which gives your **step length** (remembered for the next hike);
+  - the direction GPS saw you walk with where the phone pointed, which gives **how you hold the phone**. In a pocket the phone can point well away from where you walk; this starts at 0 each hike.
+  Only straight stretches longer than the GPS wobble count. A few minutes of walking with GPS is enough.
+- **While GPS is lost:**
+  - the map shows your estimated position in amber, with a dashed ± circle;
+  - beacons keep dropping by the same rules, saved as *estimated*;
+  - the ± grows by "Estimate uncertainty growth" (10% by default) of the distance walked, so 300 m without GPS adds ±30 m.
+- **When GPS comes back,** the app notes how far off the estimate was (on the Confidence screen's timeline) and starts again from the real position.
+- **The Confidence screen** shows the real numbers:
+  - a 0–100 score from the ± accuracy (±5 m or better is 100, ±100 m or worse is 0) and a grade;
+  - where the position comes from;
+  - which sensors work;
+  - what has been learned;
+  - the GPS timeline.
+- **Sensors:**
+  - Android Chrome: works without asking.
+  - iPhone: Safari asks for "Motion & Orientation" when you tap Start hike. After a reload, the hike panel shows a button to allow it again.
+  - Computers have neither sensor, so dead reckoning only works on a phone.
+
+The code: `steps.ts` (step counting), `heading.ts` (tilt-proof compass heading), `sensors.ts` (the browser events), `position.ts` (GPS + dead reckoning + learning), and the existing `src/geo/deadReckoning.ts` (the math).
 
 ## The map (demo)
 - **One demo area:** a 3 × 3 km area around Varala and Pyynikki in Tampere, drawn from real map data.
@@ -72,7 +97,18 @@ On the Live screen, the **top bar**, the **mascot's message**, the **hike panel*
   - whether the browser promised to keep the data
   - the current hike and its beacons
   - test buttons: add a test beacon, attach a photo, and delete everything
+  - **Dead reckoning:** sensor status, steps, the learned step length and phone offset, and **Simulate GPS loss** (see below)
+  - **Replay a recorded walk** (see below)
   - the beacon settings (15 min / 300 m / 45° by default)
+
+### Testing dead reckoning
+- **Simulate GPS loss:** during a hike, GPS counts as lost straight away and the app switches to estimating. GPS keeps running in the background, though, so the debug screen can show how far the estimate is from where GPS really says you are. Turn it off and GPS is "back".
+- **Recordings:** every hike records its raw readings (each GPS position, each step, the compass once a second) with the hike (`src/tracking/recording.ts`). An hour is a few hundred KB. They're deleted with the hike.
+- **Replay a recorded walk:**
+  1. Pick an ended hike and choose a stretch to hide GPS (the middle third by default).
+  2. Tap **Replay**. It runs the recording through the same code as a live hike, with the current settings.
+  3. It saves the result as a new hike ("Replay made …") with its beacons, and shows how far off the estimate was when GPS came back and at its worst.
+  Use it to try different settings on the same walk without walking it again. Only detected steps are recorded, not the raw motion sensor, so a replay can't re-tune step counting itself.
 
 ## Fonts, icons and images are bundled
 Nothing is loaded from Google Fonts or image servers, so the app looks right offline.
@@ -85,11 +121,11 @@ Nothing is loaded from Google Fonts or image servers, so the app looks right off
 | Folder | What's in it |
 |---|---|
 | `src/components/screens/` | The three main screens: Live navigation, Active backtrack, Confidence and calibration |
-| `src/components/` | The Compass, Checkpoint and QR scanner pop-ups |
+| `src/components/` | The Compass and QR scanner pop-ups (the scanner isn't opened anywhere yet) |
 | `src/components/screens/DebugScreen.tsx` | The debug screen |
 | `src/geo/` | The math: distance, bearing, dead reckoning, magnetic declination (World Magnetic Model 2025) |
 | `src/beacons/` | Beacon types, settings, and the IndexedDB store |
-| `src/tracking/` | Hike mode: the beacon rules (`engine.ts`), GPS (`gps.ts`), keeping the screen on, the battery level, and `HikeProvider.tsx`, which runs it all |
+| `src/tracking/` | Hike mode: the beacon rules (`engine.ts`), GPS (`gps.ts`), steps and compass (`steps.ts`, `heading.ts`, `sensors.ts`), dead reckoning (`position.ts`), recordings and replays (`recording.ts`), the confidence score, keeping the screen on, the battery level, and `HikeProvider.tsx`, which runs it all |
 | `src/components/hike/` | The hike panel, GPS status bar and mascot messages on the Live screen |
 | `src/components/map/RealMap.tsx`, `src/map/` | The real map, and loading and projecting its data |
 | `public/maps/` | The demo map's data, built by `scripts/build_demo_map.py` |

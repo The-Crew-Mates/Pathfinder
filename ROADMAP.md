@@ -50,6 +50,7 @@ Work through the phases **one at a time**. For each phase:
 | Phase 2: Publish the bundles | Done (merged in PR #4, live since 2026-10-24) |
 | Phase 3: Real trail data | Done (merged in PR #6, live) |
 | Web app (beacon trail), steps 1–3 of 6: offline base, beacon storage + debug screen, hike mode with GPS; plus a demo map (Varala & Pyynikki, Tampere) | Built and tested locally (branch `web-app`), waiting for review |
+| Web app step 4: dead reckoning (steps + compass), simulate GPS loss, record and replay walks, real Confidence screen | Built and tested (unit tests + a walk on an Android phone), branch `web-app`, waiting for review |
 
 The repo lives at `github.com/The-Crew-Mates/Pathfinder` (public).
 

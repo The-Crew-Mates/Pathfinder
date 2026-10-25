@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS, type Settings } from '../../src/beacons/settings';
 import { destinationPoint } from '../../src/geo/distance';
 import type { LatLon } from '../../src/geo/types';
-import { type EngineState, type Fix, newEngine, onFix, onTick, resumeEngine } from '../../src/tracking/engine';
+import { type EngineState, type Fix, newEngine, onEstimate, onFix, onTick, resumeEngine } from '../../src/tracking/engine';
 
 const START: LatLon = { lat: 60.30954, lon: 24.52085 }; // Haukkalampi, Nuuksio
 const T0 = Date.UTC(2026, 9, 25, 9, 0);
@@ -148,3 +148,37 @@ describe('resuming a hike', () => {
     expect(run(fixes, DEFAULT_SETTINGS, resumed).drops).toEqual([{ reason: 'time', minute: 15 }]);
   });
 });
+
+describe('estimated positions (GPS lost)', () => {
+  /** Start with one GPS fix, then feed estimates every 10 m along `bearing`. */
+  function estimatedWalk(bearing: number, metres: number, accuracyM = 60) {
+    let state = onFix(newEngine(), fix(START, 0), DEFAULT_SETTINGS).state;
+    const drops = [];
+    for (let m = 10; m <= metres; m += 10) {
+      const estimate = fix(destinationPoint(START, m, bearing), m / 80, accuracyM);
+      const step = onEstimate(state, estimate, DEFAULT_SETTINGS);
+      state = step.state;
+      if (step.drop) drops.push(step.drop);
+    }
+    return { drops, state };
+  }
+
+  it('drops estimated beacons by distance, however big the uncertainty is', () => {
+    const { drops } = estimatedWalk(0, 320, 120);
+    expect(drops.map((d) => [d.reason, d.source, d.accuracyM])).toEqual([['distance', 'estimated', 120]]);
+  });
+
+  it('does nothing before the first GPS fix', () => {
+    const step = onEstimate(newEngine(), fix(START, 0, 30), DEFAULT_SETTINGS);
+    expect(step.drop).toBeNull();
+    expect(step.state.lastBeacon).toBeNull();
+  });
+
+  it('onTick drops the time beacon at the estimate, even with no recent GPS fix', () => {
+    const { state } = run([fix(START, 0)]);
+    const estimate = fix(destinationPoint(START, 200, 90), 14, 40);
+    const step = onTick(state, T0 + 15 * MINUTE, DEFAULT_SETTINGS, estimate);
+    expect(step.drop).toMatchObject({ reason: 'time', source: 'estimated', accuracyM: 40, timestamp: T0 + 15 * MINUTE });
+  });
+});
+
