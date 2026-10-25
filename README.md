@@ -27,7 +27,7 @@ Frontend team: the JSON format is in [docs/bundle-format.md](docs/bundle-format.
 2. Check it locally with `python3 scripts/build_bundles.py`, then look in `public/`.
 3. Commit `pathfinder.db` and get it onto `main` (push, or merge a pull request).
 
-GitHub then tests, rebuilds and republishes the bundles by itself. You can watch it happen in the repo's **Actions** tab ("Publish trail bundles"):
+GitHub then tests, rebuilds and republishes the bundles by itself. You can watch it happen in the repo's **Actions** tab ("Publish bundles and web app"):
 
 - **Green tick:** the new bundles are live.
 - **Red cross:** a test or something in the data failed, so nothing was published and the previous version stays live. Click the run to see the error.

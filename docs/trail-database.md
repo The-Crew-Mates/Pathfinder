@@ -114,7 +114,7 @@ The GitHub Action in `.github/workflows/publish-bundles.yml` publishes the bundl
 
 - **Push to `main`** that changes `pathfinder.db`, `scripts/`, `db/` or `tests/`: it runs the tests, then `build_bundles.py`, and publishes `public/`.
 - **Pull request:** it only runs the tests and the build, as a check. Nothing is published.
-- **By hand:** the **Actions** tab → "Publish trail bundles" → **Run workflow**.
+- **By hand:** the **Actions** tab → "Publish bundles and web app" → **Run workflow**.
 - **If a test or the build fails,** nothing is published and the live site keeps its last good version.
 
 The import doesn't run on GitHub. It talks to outside services, and a person should look at the result (and the PR check) before it goes live.
