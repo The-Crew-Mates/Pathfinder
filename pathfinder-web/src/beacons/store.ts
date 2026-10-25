@@ -1,4 +1,4 @@
-// Beacon storage: hikes, beacons, photos and settings, saved in the browser's
+// Beacon storage: hikes, beacons, photos, settings and recorded sensor readings, saved in the browser's
 // built-in database (IndexedDB). Everything stays on the phone (no internet
 // needed) and survives closing the app and restarting the phone.
 //
@@ -7,6 +7,7 @@
 
 import { type DBSchema, type IDBPDatabase, openDB } from 'idb';
 
+import type { Reading } from '../tracking/recording';
 import { type Settings, validateSettings } from './settings';
 import {
   BEACON_REASONS,
@@ -23,7 +24,7 @@ export const DEFAULT_DB_NAME = 'pathfinder';
 
 // Bump this, and add a step to upgrade() below, whenever the stores change.
 // Never change an existing step: phones with older data upgrade one step at a time.
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 // A saved beacon also gets `seq`, a counter the database fills in. Beacons with
 // the same timestamp are then still listed in the order they were added.
@@ -34,6 +35,10 @@ interface PathfinderDB extends DBSchema {
   beacons: { key: number; value: StoredBeacon; indexes: { byId: string; byHikeAndTime: [string, number] } };
   photos: { key: string; value: BeaconPhoto & { beaconId: string } };
   settings: { key: string; value: number };
+  /** A hike's recorded readings, saved in chunks as the hike goes (version 2). */
+  sensorLog: { key: number; value: { hikeId: string; readings: Reading[] }; indexes: { byHike: string } };
+  /** What dead reckoning has learned about the hiker, e.g. "stepLengthM" (version 2). */
+  calibration: { key: string; value: number };
 }
 
 /** A random id. crypto.randomUUID only exists on secure (https) pages, so there's a fallback. */
@@ -86,6 +91,10 @@ export class BeaconStore {
           database.createObjectStore('photos', { keyPath: 'beaconId' });
           database.createObjectStore('settings');
         }
+        if (oldVersion < 2) {
+          database.createObjectStore('sensorLog', { autoIncrement: true }).createIndex('byHike', 'hikeId');
+          database.createObjectStore('calibration');
+        }
       },
     });
     return new BeaconStore(db);
@@ -107,9 +116,16 @@ export class BeaconStore {
       cancel(tx);
       throw new Error('A hike is already in progress. End it before starting a new one.');
     }
-    const hike: Hike = { id: newId(), startedAt: now, endedAt: null, status: 'active', retraceIndex: null };
+    const hike: Hike = { id: newId(), startedAt: now, endedAt: null, status: 'active', retraceIndex: null, replayOf: null };
     await tx.store.add(hike);
     await tx.done;
+    return hike;
+  }
+
+  /** Save a replay of the recorded hike `replayOf` (debug screen) as a new, already ended hike. */
+  async addReplayHike(replayOf: string, now: number): Promise<Hike> {
+    const hike: Hike = { id: newId(), startedAt: now, endedAt: now, status: 'ended', retraceIndex: null, replayOf };
+    await this.db.add('hikes', hike);
     return hike;
   }
 
@@ -150,10 +166,15 @@ export class BeaconStore {
     await tx.done;
   }
 
-  /** Delete a hike with all its beacons and photos. */
+  /** Delete a hike with all its beacons, photos and recorded readings. */
   async deleteHike(id: string): Promise<void> {
-    const tx = this.db.transaction(['hikes', 'beacons', 'photos'], 'readwrite');
+    const tx = this.db.transaction(['hikes', 'beacons', 'photos', 'sensorLog'], 'readwrite');
     await tx.objectStore('hikes').delete(id);
+    let chunk = await tx.objectStore('sensorLog').index('byHike').openCursor(id);
+    while (chunk) {
+      await chunk.delete();
+      chunk = await chunk.continue();
+    }
     let cursor = await tx.objectStore('beacons').index('byHikeAndTime').openCursor(hikeRange(id));
     while (cursor) {
       await tx.objectStore('photos').delete(cursor.value.id);
@@ -244,17 +265,40 @@ export class BeaconStore {
     await this.db.clear('settings');
   }
 
+  // --- Recorded readings and calibration ---------------------------------------
+
+  /** Add readings to a hike's recording. Called every 30 s or so during a hike. */
+  async addReadings(hikeId: string, readings: Reading[]): Promise<void> {
+    if (readings.length === 0) return;
+    await this.db.add('sensorLog', { hikeId, readings });
+  }
+
+  /** All of a hike's recorded readings, oldest first. */
+  async getReadings(hikeId: string): Promise<Reading[]> {
+    const chunks = await this.db.getAllFromIndex('sensorLog', 'byHike', hikeId);
+    return chunks.flatMap((chunk) => chunk.readings).sort((a, b) => a.t - b.t);
+  }
+
+  /** True if the hike has any recorded readings. */
+  async hasReadings(hikeId: string): Promise<boolean> {
+    return (await this.db.countFromIndex('sensorLog', 'byHike', hikeId)) > 0;
+  }
+
+  /** The hiker's learned step length in metres, or null if nothing has been learned yet. */
+  async getLearnedStepLength(): Promise<number | null> {
+    return (await this.db.get('calibration', 'stepLengthM')) ?? null;
+  }
+
+  async saveLearnedStepLength(metres: number): Promise<void> {
+    await this.db.put('calibration', metres, 'stepLengthM');
+  }
+
   // --- Debug ------------------------------------------------------------------
 
-  /** Delete every hike, beacon, photo and setting. For the debug screen only. */
+  /** Delete every hike, beacon, photo, setting, recording and calibration. For the debug screen only. */
   async deleteEverything(): Promise<void> {
-    const tx = this.db.transaction(['hikes', 'beacons', 'photos', 'settings'], 'readwrite');
-    await Promise.all([
-      tx.objectStore('hikes').clear(),
-      tx.objectStore('beacons').clear(),
-      tx.objectStore('photos').clear(),
-      tx.objectStore('settings').clear(),
-    ]);
-    await tx.done;
+    const stores = ['hikes', 'beacons', 'photos', 'settings', 'sensorLog', 'calibration'] as const;
+    const tx = this.db.transaction(stores, 'readwrite');
+    await Promise.all([...stores.map((name) => tx.objectStore(name).clear()), tx.done]);
   }
 }

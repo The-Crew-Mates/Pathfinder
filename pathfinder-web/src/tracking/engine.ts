@@ -6,9 +6,12 @@
 //   - distance: X metres walked since the last beacon
 //   - turn:     the walking direction changed by more than X° and stayed changed for X seconds
 // The very first good GPS fix of a hike drops a "start" beacon.
+//
+// While GPS is lost, the same rules run on the position estimated from steps
+// and the compass (onEstimate), and those beacons are saved as "estimated".
 
 import type { Settings } from '../beacons/settings';
-import type { BeaconReason } from '../beacons/types';
+import type { BeaconReason, BeaconSource } from '../beacons/types';
 import { angleDifference } from '../geo/angles';
 import { distanceMeters, initialBearing } from '../geo/distance';
 import type { LatLon } from '../geo/types';
@@ -45,8 +48,14 @@ export type EngineState = {
   lastFix: Fix | null;
 };
 
-/** What to drop: the reason, and where and when. */
-export type Drop = { reason: BeaconReason; position: LatLon; accuracyM: number; timestamp: number };
+/** What to drop: the reason, where and when, and whether the position came from GPS or was estimated. */
+export type Drop = {
+  reason: BeaconReason;
+  source: BeaconSource;
+  position: LatLon;
+  accuracyM: number;
+  timestamp: number;
+};
 
 export type Step = { state: EngineState; drop: Drop | null };
 
@@ -89,31 +98,57 @@ function dropped(state: EngineState, drop: Drop): Step {
 /** Feed in a new GPS fix. Returns the new state, and a beacon to drop if a rule was met. */
 export function onFix(previous: EngineState, fix: Fix, settings: Settings): Step {
   if (fix.accuracyM > POOR_ACCURACY_M) return { state: previous, drop: null };
-  let state: EngineState = { ...previous, lastFix: fix };
-  const here = { lat: fix.lat, lon: fix.lon };
-  const dropHere = (reason: BeaconReason): Drop => ({
-    reason,
-    position: here,
-    accuracyM: fix.accuracyM,
-    timestamp: fix.timestamp,
-  });
-
+  const state: EngineState = { ...previous, lastFix: fix };
   if (!state.lastBeacon) {
-    return dropped({ ...state, anchor: fix }, dropHere('start'));
+    return dropped({ ...state, anchor: fix }, dropAt(fix, 'gps', 'start'));
   }
-  const lastBeaconAt = state.lastBeacon.timestamp;
+  // Only count movement bigger than the GPS wobble.
+  const wobbleM = (anchor: Fix) => Math.max(MIN_STEP_M, anchor.accuracyM + fix.accuracyM);
+  return applyRules(state, fix, 'gps', wobbleM, settings);
+}
 
-  // Walking: only count movement bigger than the GPS wobble.
+/**
+ * Feed in a position estimated from steps and the compass (while GPS is lost).
+ * Estimates don't wobble the way GPS does, so any movement of MIN_STEP_M or
+ * more counts, however big the estimate's uncertainty has grown.
+ */
+export function onEstimate(previous: EngineState, estimate: Fix, settings: Settings): Step {
+  if (!previous.lastBeacon) return { state: previous, drop: null }; // estimates always start from a GPS fix
+  return applyRules({ ...previous }, estimate, 'estimated', () => MIN_STEP_M, settings);
+}
+
+function dropAt(position: Fix, source: BeaconSource, reason: BeaconReason): Drop {
+  return {
+    reason,
+    source,
+    position: { lat: position.lat, lon: position.lon },
+    accuracyM: position.accuracyM,
+    timestamp: position.timestamp,
+  };
+}
+
+/** The distance, turn and time rules, shared by GPS fixes and estimates. */
+function applyRules(
+  previous: EngineState,
+  position: Fix,
+  source: BeaconSource,
+  wobbleM: (anchor: Fix) => number,
+  settings: Settings,
+): Step {
+  let state = previous;
+  const lastBeaconAt = state.lastBeacon!.timestamp;
+
+  // Walking: count the movement once it's bigger than the wobble.
   if (!state.anchor) {
-    state.anchor = fix;
+    state.anchor = position;
   } else {
-    const moved = distanceMeters(state.anchor, fix);
-    if (moved >= Math.max(MIN_STEP_M, state.anchor.accuracyM + fix.accuracyM)) {
+    const moved = distanceMeters(state.anchor, position);
+    if (moved >= wobbleM(state.anchor)) {
       state = {
         ...state,
         distanceSinceBeaconM: state.distanceSinceBeaconM + moved,
-        course: initialBearing(state.anchor, fix),
-        anchor: fix,
+        course: initialBearing(state.anchor, position),
+        anchor: position,
       };
     }
   }
@@ -125,38 +160,34 @@ export function onFix(previous: EngineState, fix: Fix, settings: Settings): Step
   } else if (state.course !== null && state.referenceCourse !== null) {
     const turned = Math.abs(angleDifference(state.referenceCourse, state.course)) > settings.turnAngleDegrees;
     if (!turned) state.turnStartedAt = null;
-    else if (state.turnStartedAt === null) state.turnStartedAt = fix.timestamp;
+    else if (state.turnStartedAt === null) state.turnStartedAt = position.timestamp;
   }
 
-  // Whichever rule is met first. If two are met on the same fix, the
+  // Whichever rule is met first. If two are met on the same position, the
   // order below decides which reason is recorded.
-  if (state.distanceSinceBeaconM >= settings.beaconDistanceM) return dropped(state, dropHere('distance'));
-  if (state.turnStartedAt !== null && fix.timestamp - state.turnStartedAt >= settings.turnSustainSeconds * 1000) {
-    return dropped(state, dropHere('turn'));
+  if (state.distanceSinceBeaconM >= settings.beaconDistanceM) return dropped(state, dropAt(position, source, 'distance'));
+  if (state.turnStartedAt !== null && position.timestamp - state.turnStartedAt >= settings.turnSustainSeconds * 1000) {
+    return dropped(state, dropAt(position, source, 'turn'));
   }
-  if (fix.timestamp - lastBeaconAt >= settings.beaconIntervalMinutes * 60_000) {
-    return dropped(state, dropHere('time'));
+  if (position.timestamp - lastBeaconAt >= settings.beaconIntervalMinutes * 60_000) {
+    return dropped(state, dropAt(position, source, 'time'));
   }
   return { state, drop: null };
 }
 
 /**
- * Check the time rule when no new fix has arrived (called every few seconds).
- * The beacon goes at the last GPS position, but only if that position is
- * recent: a position from 20 minutes ago isn't where the hiker is now.
- * (When GPS is lost, step 4's dead reckoning provides an estimated position instead.)
+ * Check the time rule when no new position has arrived (called every few seconds).
+ * The beacon goes at the newest position, but only if it's recent: a GPS
+ * position from 20 minutes ago isn't where the hiker is now. While GPS is lost,
+ * pass the current `estimate` from dead reckoning, which is always up to date.
  */
-export function onTick(state: EngineState, now: number, settings: Settings): Step {
+export function onTick(state: EngineState, now: number, settings: Settings, estimate: Fix | null = null): Step {
   const { lastBeacon, lastFix } = state;
-  if (!lastBeacon || !lastFix) return { state, drop: null };
-  const fixIsFresh = now - lastFix.timestamp <= settings.gpsLostAfterSeconds * 1000;
-  if (fixIsFresh && now - lastBeacon.timestamp >= settings.beaconIntervalMinutes * 60_000) {
-    return dropped(state, {
-      reason: 'time',
-      position: { lat: lastFix.lat, lon: lastFix.lon },
-      accuracyM: lastFix.accuracyM,
-      timestamp: now,
-    });
+  if (!lastBeacon) return { state, drop: null };
+  if (now - lastBeacon.timestamp < settings.beaconIntervalMinutes * 60_000) return { state, drop: null };
+  if (estimate) return dropped(state, { ...dropAt(estimate, 'estimated', 'time'), timestamp: now });
+  if (lastFix && now - lastFix.timestamp <= settings.gpsLostAfterSeconds * 1000) {
+    return dropped(state, { ...dropAt(lastFix, 'gps', 'time'), timestamp: now });
   }
   return { state, drop: null };
 }

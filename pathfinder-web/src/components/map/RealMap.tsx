@@ -22,6 +22,8 @@ type Props = {
   /** Change this number to re-centre the map on the hiker. */
   recenterKey: number;
   position: Fix | null;
+  /** True when the position is estimated (GPS lost): drawn in amber instead of blue. */
+  estimated?: boolean;
   beacons: Beacon[];
   /** True when the satellite-style texture is shown behind the map. */
   textured: boolean;
@@ -35,7 +37,7 @@ const PLACE_COLOURS: Record<string, string> = {
   parking: '#94a3b8',
 };
 
-export function RealMap({ isDark, zoom, recenterKey, position, beacons, textured }: Props) {
+export function RealMap({ isDark, zoom, recenterKey, position, estimated = false, beacons, textured }: Props) {
   const { area, error } = useMapArea();
   const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 400, height: 490 });
@@ -101,6 +103,8 @@ export function RealMap({ isDark, zoom, recenterKey, position, beacons, textured
   const fillOpacity = textured ? 0.75 : 1;
   const outside = position && !isInside(area, position.lat, position.lon);
   const posXY = position ? projector.toXY(position.lat, position.lon) : null;
+  const ring = estimated ? '#F59E0B' : isDark ? '#00E5FF' : '#2563EB';
+  const dot = estimated ? '#D97706' : isDark ? '#0284C7' : '#2563EB';
 
   return (
     <div
@@ -155,11 +159,12 @@ export function RealMap({ isDark, zoom, recenterKey, position, beacons, textured
           );
         })}
 
-        {/* You: the dot, inside a circle showing how far off GPS might be. */}
+        {/* You: the dot, inside a circle showing how far off the position might
+            be. Amber and dashed when it's estimated from steps and the compass. */}
         {posXY && position && (
           <g>
-            <circle cx={posXY[0]} cy={posXY[1]} r={position.accuracyM} fill={isDark ? '#00E5FF' : '#2563EB'} fillOpacity={0.15} stroke={isDark ? '#00E5FF' : '#2563EB'} strokeOpacity={0.6} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-            <circle cx={posXY[0]} cy={posXY[1]} r={8 * metresPerPixel} fill={isDark ? '#0284C7' : '#2563EB'} stroke="#ffffff" strokeWidth={3 * metresPerPixel} />
+            <circle cx={posXY[0]} cy={posXY[1]} r={position.accuracyM} fill={ring} fillOpacity={0.15} stroke={ring} strokeOpacity={0.6} strokeWidth={1.5} strokeDasharray={estimated ? '6 4' : undefined} vectorEffect="non-scaling-stroke" />
+            <circle cx={posXY[0]} cy={posXY[1]} r={8 * metresPerPixel} fill={dot} stroke="#ffffff" strokeWidth={3 * metresPerPixel} />
           </g>
         )}
       </svg>

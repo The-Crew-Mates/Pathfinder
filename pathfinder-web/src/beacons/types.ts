@@ -35,6 +35,8 @@ export type Hike = {
   status: HikeStatus;
   /** Which beacon Retrace mode is heading to (its position in time order), or null when not retracing. */
   retraceIndex: number | null;
+  /** For a replay made on the debug screen: the id of the recorded hike it replays. Missing on older hikes. */
+  replayOf?: string | null;
 };
 
 /** A photo to attach to a beacon: the raw image bytes and their type, e.g. "image/jpeg". */

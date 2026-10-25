@@ -1,6 +1,6 @@
 // Debug screen: shows what's saved on this device and lets you add test data,
-// so beacon storage can be tested without going outside. Later steps add
-// "simulate GPS loss" and "replay a trail" here.
+// so beacon storage can be tested without going outside. It can also pretend
+// GPS is lost during a walk, and replay a recorded walk, to test dead reckoning.
 //
 // Open it with "Debug tools" at the bottom of the Confidence screen, or by
 // adding #debug to the address.
@@ -9,11 +9,15 @@ import { useEffect, useState } from 'react';
 
 import { DEFAULT_SETTINGS, SETTING_FIELDS, type Settings } from '../../beacons/settings';
 import { storageUsedBytes } from '../../beacons/persistence';
-import type { Beacon } from '../../beacons/types';
+import type { Beacon, Hike } from '../../beacons/types';
+import { DEFAULT_STEP_LENGTH_M } from '../../geo/deadReckoning';
 import { destinationPoint } from '../../geo/distance';
 import { formatAccuracy, formatCoordinates, formatTime } from '../../lib/format';
 import { useStore } from '../../lib/StoreProvider';
 import { useHikeData } from '../../lib/useHikeData';
+import { useHike } from '../../tracking/HikeProvider';
+import { type ReplayReport, replay } from '../../tracking/recording';
+import type { SensorStatus } from '../../tracking/sensors';
 
 // Test beacons start at the big Haukkalampi parking area in Nuuksio.
 const TEST_START = { lat: 60.30954, lon: 24.52085 };
@@ -157,7 +161,9 @@ export function DebugScreen({ isDark, onBack }: DebugScreenProps) {
                 {loading
                   ? 'Loading…'
                   : hike
-                    ? `${hike.status === 'ended' ? 'Last hike' : hike.status === 'paused' ? 'Paused hike' : 'Hike in progress'}, started ${formatTime(hike.startedAt)}: ${beacons.length} beacon(s).`
+                    ? hike.replayOf
+                      ? `Replay made ${formatTime(hike.startedAt)}: ${beacons.length} beacon(s).`
+                      : `${hike.status === 'ended' ? 'Last hike' : hike.status === 'paused' ? 'Paused hike' : 'Hike in progress'}, started ${formatTime(hike.startedAt)}: ${beacons.length} beacon(s).`
                     : 'No hikes saved yet.'}
               </p>
               <div className="flex flex-wrap gap-2">
@@ -192,6 +198,9 @@ export function DebugScreen({ isDark, onBack }: DebugScreenProps) {
               </button>
               {message && <p className="text-[13px] text-[#34d399]">{message}</p>}
             </section>
+
+            <DeadReckoningCard card={card} label={label} muted={muted} button={button} />
+            <ReplayCard card={card} label={label} muted={muted} button={button} isDark={isDark} />
 
             <section className="flex flex-col gap-2">
               <span className={`${label} px-1`}>Beacons ({beacons.length})</span>
@@ -253,6 +262,238 @@ function BeaconRow({ beacon, number, isDark }: { beacon: Beacon; number: number;
         {beacon.note && <span className="text-[13px]">“{beacon.note}”</span>}
       </div>
       {photoUrl && <img src={photoUrl} alt={`Photo at beacon ${number}`} className="w-16 h-16 rounded-xl object-cover" />}
+    </div>
+  );
+}
+
+type CardStyles = {
+  card: string;
+  label: string;
+  muted: string;
+  button: (kind: 'primary' | 'secondary' | 'danger') => string;
+};
+
+const SENSOR_TEXT: Record<SensorStatus, string> = {
+  off: 'off (no hike)',
+  waiting: 'starting…',
+  active: 'working',
+  unavailable: 'not on this device',
+  'needs-permission': 'needs a tap to allow',
+  denied: 'blocked',
+};
+
+/** Sensors, what dead reckoning has learned, and the "Simulate GPS loss" switch. */
+function DeadReckoningCard({ card, label, muted, button }: CardStyles) {
+  const { hike, sensors, steps, calibration, position, simulatingGpsLoss, truth, setSimulateGpsLoss } = useHike();
+  const offset = Math.round(calibration.headingOffset);
+  return (
+    <section className={card}>
+      <span className={label}>Dead reckoning</span>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[14px]">
+        <span className={muted}>Step counter</span>
+        <span>{SENSOR_TEXT[sensors.motion]}</span>
+        <span className={muted}>Compass</span>
+        <span>{SENSOR_TEXT[sensors.compass]}</span>
+        <span className={muted}>Steps this hike</span>
+        <span className="tabular-nums">{steps}</span>
+        <span className={muted}>Step length</span>
+        <span className="tabular-nums">
+          {calibration.stepLengthM.toFixed(2)} m{' '}
+          <span className={muted}>
+            {calibration.stepLengthSamples > 0 ? `(learned ×${calibration.stepLengthSamples})` : '(not learned yet)'}
+          </span>
+        </span>
+        <span className={muted}>Phone vs. walking</span>
+        <span className="tabular-nums">
+          {offset > 0 ? '+' : ''}
+          {offset}°{' '}
+          <span className={muted}>{calibration.headingSamples > 0 ? `(learned ×${calibration.headingSamples})` : '(not learned yet)'}</span>
+        </span>
+        <span className={muted}>Position</span>
+        <span>{position ? `${position.source === 'gps' ? 'GPS' : 'Estimated'} ${formatAccuracy(position.accuracyM)}` : '—'}</span>
+      </div>
+      <p className={`text-[13px] ${muted}`}>
+        Learning needs a few minutes of walking with GPS: it compares your steps and compass with where GPS says you went.
+      </p>
+      <button
+        className={button(simulatingGpsLoss ? 'danger' : 'primary')}
+        disabled={!hike || hike.status !== 'active'}
+        onClick={() => setSimulateGpsLoss(!simulatingGpsLoss)}
+      >
+        {simulatingGpsLoss ? 'Stop simulating: use GPS again' : 'Simulate GPS loss'}
+      </button>
+      {!hike && <p className={`text-[13px] ${muted}`}>Start a hike on the Live screen to simulate GPS loss.</p>}
+      {simulatingGpsLoss && (
+        <p className="text-[14px] text-amber-300">
+          {truth
+            ? `Real GPS (${formatTime(truth.at)}): the estimate is ${Math.round(truth.errorM)} m away. It says it could be up to ${formatAccuracy(truth.estimatedAccuracyM)} off.`
+            : 'GPS is hidden from the app, but still read in the background so the estimate can be checked. The first check comes with the next GPS fix.'}
+        </p>
+      )}
+    </section>
+  );
+}
+
+/** Replay a recorded walk with dead reckoning, optionally hiding GPS for a stretch. */
+function ReplayCard({ card, label, muted, button, isDark }: CardStyles & { isDark: boolean }) {
+  const context = useStore();
+  const { hike: current } = useHike();
+  const [recorded, setRecorded] = useState<Hike[]>([]);
+  const [chosen, setChosen] = useState<string>('');
+  const [duration, setDuration] = useState<{ from: number; to: number } | null>(null);
+  const [hideFrom, setHideFrom] = useState('');
+  const [hideTo, setHideTo] = useState('');
+  const [report, setReport] = useState<ReplayReport | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const version = context?.version;
+  useEffect(() => {
+    if (!context) return;
+    let stillWanted = true;
+    (async () => {
+      const hikes = (await context.store.listHikes()).filter((h) => h.status === 'ended' && !h.replayOf);
+      const withReadings: Hike[] = [];
+      for (const h of hikes) if (await context.store.hasReadings(h.id)) withReadings.push(h);
+      if (stillWanted) setRecorded(withReadings);
+    })();
+    return () => {
+      stillWanted = false;
+    };
+  }, [context, version]);
+
+  // When a walk is chosen, find how long it was and suggest hiding GPS for its middle third.
+  useEffect(() => {
+    if (!context || !chosen) return;
+    let stillWanted = true;
+    context.store.getReadings(chosen).then((readings) => {
+      if (!stillWanted || readings.length === 0) return;
+      const from = readings[0].t;
+      const to = readings.at(-1)!.t;
+      const minutes = (to - from) / 60_000;
+      setDuration({ from, to });
+      setHideFrom(String(Math.round(minutes / 3)));
+      setHideTo(String(Math.round((2 * minutes) / 3)));
+      setReport(null);
+    });
+    return () => {
+      stillWanted = false;
+    };
+  }, [context, chosen]);
+
+  if (!context) return null;
+  const busy = current !== null;
+
+  const run = async () => {
+    try {
+      const { store } = context;
+      const readings = await store.getReadings(chosen);
+      const settings = await store.getSettings();
+      const stepLengthM = (await store.getLearnedStepLength()) ?? DEFAULT_STEP_LENGTH_M;
+      const from = Number(hideFrom.replace(',', '.'));
+      const to = Number(hideTo.replace(',', '.'));
+      const start = readings[0]?.t ?? 0;
+      const hideGps =
+        hideFrom.trim() !== '' && hideTo.trim() !== '' && Number.isFinite(from) && Number.isFinite(to) && to > from
+          ? { from: start + from * 60_000, to: start + to * 60_000 }
+          : null;
+      const result = replay(readings, { settings, stepLengthM, hideGps });
+      const saved = await store.addReplayHike(chosen, Date.now());
+      for (const drop of result.drops) {
+        await store.addBeacon({
+          hikeId: saved.id,
+          timestamp: drop.timestamp,
+          lat: drop.position.lat,
+          lon: drop.position.lon,
+          source: drop.source,
+          accuracyM: drop.accuracyM,
+          reason: drop.reason,
+        });
+      }
+      setReport(result);
+      setMessage(
+        `Replayed with GPS ${hideGps ? `hidden from minute ${from} to ${to}` : 'as recorded'}. Its beacons are listed below.`,
+      );
+      context.changed();
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const input = `w-20 rounded-xl px-3 py-2 border font-space text-[15px] tabular-nums ${
+    isDark ? 'bg-[#0b1311] border-[#233a32] text-white' : 'bg-white border-slate-300 text-slate-900'
+  }`;
+  return (
+    <section className={card}>
+      <span className={label}>Replay a recorded walk</span>
+      <p className={`text-[13px] ${muted}`}>
+        Every hike records its GPS positions, steps and compass. Replaying one runs dead reckoning again with the current
+        settings, and can hide GPS for a stretch to see how far off the estimate would have been.
+      </p>
+      {recorded.length === 0 ? (
+        <p className={`text-[14px] ${muted}`}>No recorded walks yet. Hikes record automatically; end one to replay it.</p>
+      ) : (
+        <>
+          <select
+            aria-label="Recorded walk"
+            value={chosen}
+            onChange={(e) => setChosen(e.target.value)}
+            className={`rounded-xl px-3 py-2 border text-[14px] ${isDark ? 'bg-[#0b1311] border-[#233a32] text-white' : 'bg-white border-slate-300'}`}
+          >
+            <option value="">Choose a walk…</option>
+            {recorded.map((h) => (
+              <option key={h.id} value={h.id}>
+                {formatTime(h.startedAt)}
+                {h.endedAt ? ` (${Math.round((h.endedAt - h.startedAt) / 60_000)} min)` : ''}
+              </option>
+            ))}
+          </select>
+          {chosen && duration && (
+            <div className="flex items-center gap-2 flex-wrap text-[14px]">
+              <span>Hide GPS from minute</span>
+              <input aria-label="Hide GPS from minute" inputMode="decimal" className={input} value={hideFrom} onChange={(e) => setHideFrom(e.target.value)} />
+              <span>to</span>
+              <input aria-label="Hide GPS to minute" inputMode="decimal" className={input} value={hideTo} onChange={(e) => setHideTo(e.target.value)} />
+              <span className={muted}>of {Math.round((duration.to - duration.from) / 60_000)}</span>
+            </div>
+          )}
+          <button className={button('primary')} disabled={!chosen || busy} onClick={() => void run()}>
+            Replay
+          </button>
+          {busy && <p className={`text-[13px] ${muted}`}>End the current hike first: a replay is saved as a hike of its own.</p>}
+        </>
+      )}
+      {message && <p className="text-[13px] text-[#34d399]">{message}</p>}
+      {report && <ReplayResult report={report} muted={muted} />}
+    </section>
+  );
+}
+
+function ReplayResult({ report, muted }: { report: ReplayReport; muted: string }) {
+  const estimated = report.drops.filter((d) => d.source === 'estimated').length;
+  return (
+    <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[14px]">
+      <span className={muted}>Steps</span>
+      <span className="tabular-nums">{report.steps}</span>
+      <span className={muted}>Step length learned</span>
+      <span className="tabular-nums">{report.calibration.stepLengthM.toFixed(2)} m</span>
+      <span className={muted}>Phone vs. walking</span>
+      <span className="tabular-nums">{Math.round(report.calibration.headingOffset)}°</span>
+      <span className={muted}>Beacons</span>
+      <span className="tabular-nums">
+        {report.drops.length} ({estimated} estimated)
+      </span>
+      <span className={muted}>Hidden GPS fixes</span>
+      <span className="tabular-nums">{report.hiddenFixes}</span>
+      <span className={muted}>Worst error</span>
+      <span className="tabular-nums">{report.worstErrorM === null ? '—' : `${Math.round(report.worstErrorM)} m`}</span>
+      {report.returns.map((r) => (
+        <div key={r.at} className="contents">
+          <span className={muted}>GPS back {formatTime(r.at)}</span>
+          <span className="tabular-nums">
+            {Math.round(r.errorM)} m off <span className={muted}>(said {formatAccuracy(r.estimatedAccuracyM)})</span>
+          </span>
+        </div>
+      ))}
     </div>
   );
 }

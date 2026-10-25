@@ -5,6 +5,10 @@
 // It also decides when GPS counts as lost (no usable position for "GPS counts
 // as lost after" seconds), and then only retries every "Retry GPS every"
 // minutes, because searching for a signal that isn't there is expensive.
+//
+// For testing dead reckoning, the debug screen can pretend GPS is lost
+// (simulateLoss): positions are still read, but handed to onHiddenFix instead
+// of onFix, so the app can compare its estimate with where you really are.
 
 import type { Settings } from '../beacons/settings';
 import { type Fix, POOR_ACCURACY_M } from './engine';
@@ -23,6 +27,10 @@ type Options = {
   /** Read the current settings (they can change during a hike). */
   settings: () => Settings;
   onFix: (fix: Fix) => void;
+  /** Every position GPS gives, good or rough, hidden or not (for the recording). */
+  onReading?: (fix: Fix) => void;
+  /** Good positions read while GPS loss is being simulated. */
+  onHiddenFix?: (fix: Fix) => void;
   /** Called whenever the status changes. `wasLost` is true when GPS comes back after being lost. */
   onStatus: (status: GpsStatus, wasLost: boolean) => void;
 };
@@ -33,6 +41,7 @@ export class GpsTracker {
   private waitingForFix = false;
   private startedAt = 0;
   private lastGoodAt: number | null = null;
+  private simulatingLoss = false;
 
   constructor(private options: Options) {}
 
@@ -57,6 +66,25 @@ export class GpsTracker {
     this.timer = null;
     this.waitingForFix = false;
     this.setStatus('off');
+  }
+
+  /**
+   * Pretend GPS is lost (for testing dead reckoning). It counts as lost straight
+   * away, and keeps reading positions at the normal pace so they can be
+   * compared with the estimate. Turning it off asks for a position at once.
+   */
+  simulateLoss(on: boolean): void {
+    if (on === this.simulatingLoss) return;
+    this.simulatingLoss = on;
+    if (on) {
+      if (this.status === 'good' || this.status === 'searching') this.setStatus('lost');
+    } else {
+      this.requestNow();
+    }
+  }
+
+  isSimulatingLoss(): boolean {
+    return this.simulatingLoss;
   }
 
   /** Ask for a position right now, e.g. when the screen comes back on. */
@@ -91,7 +119,10 @@ export class GpsTracker {
       accuracyM: position.coords.accuracy,
       timestamp: position.timestamp || Date.now(),
     };
-    if (fix.accuracyM <= POOR_ACCURACY_M) {
+    this.options.onReading?.(fix);
+    if (this.simulatingLoss) {
+      if (fix.accuracyM <= POOR_ACCURACY_M) this.options.onHiddenFix?.(fix);
+    } else if (fix.accuracyM <= POOR_ACCURACY_M) {
       const wasLost = this.status === 'lost';
       this.lastGoodAt = Date.now();
       this.setStatus('good', wasLost);
@@ -122,7 +153,8 @@ export class GpsTracker {
 
   private scheduleNext(): void {
     const settings = this.options.settings();
-    const delay = this.status === 'lost' ? settings.gpsRetryMinutes * 60_000 : settings.gpsIntervalSeconds * 1000;
+    const retrying = this.status === 'lost' && !this.simulatingLoss;
+    const delay = retrying ? settings.gpsRetryMinutes * 60_000 : settings.gpsIntervalSeconds * 1000;
     this.timer = setTimeout(() => this.request(), delay);
   }
 

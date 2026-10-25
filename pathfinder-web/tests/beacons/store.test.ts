@@ -3,6 +3,7 @@
 // fresh database.
 
 import 'fake-indexeddb/auto';
+import { openDB } from 'idb';
 import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_SETTINGS } from '../../src/beacons/settings';
@@ -237,3 +238,70 @@ describe('deleteEverything', () => {
     expect(await store.getSettings()).toEqual(DEFAULT_SETTINGS);
   });
 });
+
+describe('recorded readings and calibration (database version 2)', () => {
+  it('upgrades a version 1 database without losing its hikes and beacons', async () => {
+    const name = `test-${++dbCounter}`;
+    // A database exactly as step 2 of the web app created it.
+    const old = await openDB(name, 1, {
+      upgrade(database) {
+        database.createObjectStore('hikes', { keyPath: 'id' }).createIndex('byStatus', 'status');
+        const beacons = database.createObjectStore('beacons', { keyPath: 'seq', autoIncrement: true });
+        beacons.createIndex('byId', 'id', { unique: true });
+        beacons.createIndex('byHikeAndTime', ['hikeId', 'timestamp']);
+        database.createObjectStore('photos', { keyPath: 'beaconId' });
+        database.createObjectStore('settings');
+      },
+    });
+    await old.add('hikes', { id: 'h1', startedAt: T0, endedAt: null, status: 'active', retraceIndex: null });
+    await old.add('beacons', { ...beacon('h1', 0), id: 'b1', note: null, hasPhoto: false });
+    await old.put('settings', 20, 'beaconIntervalMinutes');
+    old.close();
+
+    const store = await BeaconStore.open(name);
+    expect((await store.getCurrentHike())?.id).toBe('h1');
+    expect((await store.listBeacons('h1')).map((b) => b.id)).toEqual(['b1']);
+    expect((await store.getSettings()).beaconIntervalMinutes).toBe(20);
+    await store.addReadings('h1', [{ t: T0, kind: 'steps', count: 2 }]);
+    expect(await store.hasReadings('h1')).toBe(true);
+  });
+
+  it('saves readings in chunks and gives them back in time order', async () => {
+    const store = await freshStore();
+    const hike = await store.startHike(T0);
+    await store.addReadings(hike.id, [
+      { t: T0 + 2000, kind: 'steps', count: 1 },
+      { t: T0 + 3000, kind: 'heading', magnetic: 87.5 },
+    ]);
+    await store.addReadings(hike.id, [{ t: T0 + 1000, kind: 'fix', lat: 60.3, lon: 24.5, accuracyM: 6 }]);
+    await store.addReadings(hike.id, []); // nothing to save
+    expect((await store.getReadings(hike.id)).map((r) => r.t)).toEqual([T0 + 1000, T0 + 2000, T0 + 3000]);
+    expect(await store.hasReadings('another hike')).toBe(false);
+  });
+
+  it('deletes the readings with their hike', async () => {
+    const store = await freshStore();
+    const hike = await store.startHike(T0);
+    await store.addReadings(hike.id, [{ t: T0, kind: 'steps', count: 1 }]);
+    await store.deleteHike(hike.id);
+    expect(await store.getReadings(hike.id)).toEqual([]);
+  });
+
+  it('remembers the learned step length until everything is deleted', async () => {
+    const store = await freshStore();
+    expect(await store.getLearnedStepLength()).toBeNull();
+    await store.saveLearnedStepLength(0.82);
+    await store.resetSettings(); // resetting the settings keeps it
+    expect(await store.getLearnedStepLength()).toBe(0.82);
+    await store.deleteEverything();
+    expect(await store.getLearnedStepLength()).toBeNull();
+  });
+
+  it('saves a replay as an ended hike that points to the recorded one', async () => {
+    const store = await freshStore();
+    const replay = await store.addReplayHike('recorded-hike', T0);
+    expect(replay).toMatchObject({ status: 'ended', replayOf: 'recorded-hike', startedAt: T0, endedAt: T0 });
+    expect(await store.getCurrentHike()).toBeNull();
+  });
+});
+
