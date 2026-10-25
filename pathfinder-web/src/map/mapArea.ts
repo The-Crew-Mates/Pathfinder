@@ -31,7 +31,7 @@ export type MapArea = {
   places: { name: string; type: string; lat: number; lon: number }[];
 };
 
-export const DEMO_AREA_ID = 'tampere-varala';
+export const DEMO_AREA_ID = 'tampere-hervanta';
 
 /** True if the point is inside the area's box. */
 export function isInside(area: MapArea, lat: number, lon: number): boolean {

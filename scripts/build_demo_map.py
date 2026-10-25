@@ -4,7 +4,7 @@ Usage:
     python3 scripts/build_demo_map.py            # reuses downloads from the last 24 h
     python3 scripts/build_demo_map.py --refresh  # download everything again
 
-Writes pathfinder-web/public/maps/tampere-varala.json, which the app draws
+Writes pathfinder-web/public/maps/tampere-hervanta.json, which the app draws
 offline: paths, roads, water, forest, parks and wetland from OpenStreetMap,
 plus official trails from Lipas and landmarks (shelters, viewpoints, water
 points, parking) in the area.
@@ -13,7 +13,7 @@ OpenStreetMap's map *images* (tiles) can't be saved for offline use under
 their usage rules, so the app draws the map itself from this data instead.
 The map shows "© OpenStreetMap contributors" as the ODbL license requires.
 
-The area is a 3 x 3 km square around Varala Sports Institute in Pyynikki, Tampere.
+The area is a 3 x 3 km square around Tampere University's Hervanta campus, Tampere.
 """
 
 import argparse
@@ -26,9 +26,9 @@ import import_trails as trails
 from database import ROOT
 
 AREA = {
-    "id": "tampere-varala",
-    "name": "Varala & Pyynikki",
-    "center": (61.49433, 23.71329),  # Varalan urheiluopisto (Varala Sports Institute)
+    "id": "tampere-hervanta",
+    "name": "Hervanta campus",
+    "center": (61.44955, 23.85700),  # Tampere University, Hervanta campus (Tietotalo)
     "radius_m": 1500,
     "lipas_city_codes": [837],  # Tampere
 }
