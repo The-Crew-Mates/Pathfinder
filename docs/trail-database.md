@@ -154,6 +154,7 @@ Tip: [DB Browser for SQLite](https://sqlitebrowser.org) is a free app for lookin
 | `scripts/create_db.py` | Creates `pathfinder.db` from `db/schema.sql` |
 | `scripts/import_trails.py` | Imports real trails from Lipas, plus landmarks from OpenStreetMap |
 | `scripts/geo.py` | The map maths: distances, route length, joining route pieces |
+| `scripts/build_demo_map.py` | Builds the web app's demo map (OpenStreetMap + Lipas data for one area) |
 | `scripts/seed.py` | Adds 3 placeholder trails, for testing only |
 | `scripts/build_bundles.py` | Builds `public/index.json` and one bundle per trail in `public/trails/` |
 | `tests/` | Offline tests for the import and the map maths |

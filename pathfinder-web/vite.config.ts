@@ -34,7 +34,7 @@ export default defineConfig(({mode}) => {
         },
         workbox: {
           // Save the whole app, fonts and images included, for offline use.
-          globPatterns: ['**/*.{js,css,html,woff2,png,jpg,svg,webmanifest}'],
+          globPatterns: ['**/*.{js,css,html,woff2,png,jpg,svg,webmanifest,json}'],
         },
       }),
       // `npm run dev:phone` serves over HTTPS with a self-signed certificate,

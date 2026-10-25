@@ -1,4 +1,8 @@
 import { useState } from 'react';
+import { GpsStatusBanner, HikePanel, scoutMessage } from '../hike/HikeUi';
+import { RealMap } from '../map/RealMap';
+import { useMapArea } from '../../map/mapArea';
+import { useHike } from '../../tracking/HikeProvider';
 import { DemoMode, Checkpoint } from '../../types/navigation';
 import { playChirpSound } from '../../utils/audio';
 import mapTexture from '../../assets/images/map-texture.png';
@@ -23,9 +27,13 @@ export function LiveNavigationScreen({
   onNavigateToConfidence,
   onInspectCheckpoint,
 }: LiveNavigationScreenProps) {
+  const hikeState = useHike();
+  const { area: mapArea } = useMapArea();
+  const scout = scoutMessage(hikeState);
   const [zoomScale, setZoomScale] = useState<number>(1);
   const [mapLayer, setMapLayer] = useState<'topo' | 'satellite'>('topo');
   const [isRecentering, setIsRecentering] = useState<boolean>(false);
+  const [recenterCount, setRecenterCount] = useState(0);
 
   // Checkpoint data for Wooden Bridge
   const woodenBridgeCheckpoint: Checkpoint = {
@@ -40,12 +48,13 @@ export function LiveNavigationScreen({
 
   const handleZoom = (delta: number) => {
     playChirpSound();
-    setZoomScale((prev) => Math.min(Math.max(prev * delta, 0.75), 1.5));
+    setZoomScale((prev) => Math.min(Math.max(prev * delta, 0.25), 8));
   };
 
   const handleRecenter = () => {
     playChirpSound();
     setIsRecentering(true);
+    setRecenterCount((n) => n + 1);
     setZoomScale(1);
     setTimeout(() => setIsRecentering(false), 400);
   };
@@ -69,32 +78,8 @@ export function LiveNavigationScreen({
         }`}
       >
         <div className="flex flex-col">
-          {/* Honest GPS Status Notification Banner */}
-          <div
-            className={`h-6 px-4 flex items-center justify-between font-space text-[11px] border-b ${
-              isDark
-                ? 'bg-amber-500/15 border-amber-500/30'
-                : 'bg-amber-500/10 border-amber-500/20'
-            }`}
-          >
-            <div className="flex items-center gap-1.5 font-bold tracking-wide uppercase text-amber-500">
-              <span className="h-2 w-2 rounded-full bg-amber-600 inline-block animate-ping shrink-0" />
-              <span className="material-symbols-outlined text-[14px]">satellite_alt</span>
-              <span className="truncate">GPS UNAVAILABLE · ESTIMATED POSITION</span>
-            </div>
-            <div className="flex items-center gap-2 font-semibold">
-              <span
-                className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                  isDark
-                    ? 'bg-amber-400/20 border border-amber-400/40 text-amber-200'
-                    : 'bg-amber-200 text-amber-900'
-                }`}
-              >
-                DEAD-RECKONING
-              </span>
-              <span className="material-symbols-outlined text-[14px]">battery_5_bar</span>
-            </div>
-          </div>
+          {/* Live GPS status (HikeUi.tsx) */}
+          <GpsStatusBanner isDark={isDark} />
 
           {/* Navigation Header Bar */}
           <div className="h-14 px-3 flex items-center justify-between">
@@ -113,7 +98,7 @@ export function LiveNavigationScreen({
                   Pathfinder Live Navigation
                 </span>
                 <h1 className="font-headline-sm text-[17px] font-extrabold leading-tight">
-                  High Ridge Trail
+                  {mapArea?.name ?? 'Live map'}
                 </h1>
               </div>
             </div>
@@ -153,299 +138,15 @@ export function LiveNavigationScreen({
               />
             )}
 
-            {/* SVG Vector Topographic Terrain & Trails */}
-            <div
-              className={`absolute inset-0 w-full h-full transition-transform duration-300 ${
-                isRecentering ? 'scale-105' : ''
-              }`}
-              style={{ transform: `scale(${zoomScale})` }}
-            >
-              <svg className="w-full h-full object-cover" fill="none" viewBox="0 0 390 510">
-                <defs>
-                  <linearGradient id="lakeGradLive" x1="260" x2="350" y1="120" y2="210" gradientUnits="userSpaceOnUse">
-                    {isDark ? (
-                      <>
-                        <stop offset="0%" stopColor="#1d4ed8" stopOpacity="0.75" />
-                        <stop offset="100%" stopColor="#0e2a56" stopOpacity="0.9" />
-                      </>
-                    ) : (
-                      <>
-                        <stop offset="0%" stopColor="#abc5ff" stopOpacity="0.85" />
-                        <stop offset="100%" stopColor="#6e98f0" stopOpacity="0.65" />
-                      </>
-                    )}
-                  </linearGradient>
-
-                  <radialGradient id="haloGradLive" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stopColor={isDark ? '#00E5FF' : '#2563EB'} stopOpacity={demoMode === 'drift' ? '0.45' : '0.35'} />
-                    <stop offset="50%" stopColor={isDark ? '#00E5FF' : '#2563EB'} stopOpacity="0.15" />
-                    <stop offset="90%" stopColor={isDark ? '#00E5FF' : '#2563EB'} stopOpacity="0.04" />
-                    <stop offset="100%" stopColor={isDark ? '#00E5FF' : '#2563EB'} stopOpacity="0" />
-                  </radialGradient>
-
-                  <filter id="softGlowLive" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="3" result="blur" />
-                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                  </filter>
-                </defs>
-
-                {/* Topographic contour lines */}
-                <path
-                  d="M-40 90 Q 60 70, 150 110 T 360 80 T 430 110"
-                  stroke={isDark ? '#19352A' : '#cfddd8'}
-                  strokeDasharray="3 3"
-                  strokeWidth="1.2"
-                />
-                <path
-                  d="M-20 160 Q 80 140, 190 170 T 380 140 T 430 170"
-                  stroke={isDark ? '#1B3D30' : '#cfddd8'}
-                  strokeWidth="1.2"
-                />
-                <path
-                  d="M-30 240 Q 110 200, 200 250 T 410 210"
-                  stroke={isDark ? '#19352A' : '#cfddd8'}
-                  strokeWidth="1.2"
-                />
-                <path
-                  d="M-10 320 Q 90 280, 230 330 T 420 290"
-                  stroke={isDark ? '#19352A' : '#cfddd8'}
-                  strokeDasharray="2 3"
-                  strokeWidth="1.2"
-                />
-                <path
-                  d="M-40 400 Q 120 370, 260 410 T 440 370"
-                  stroke={isDark ? '#19352A' : '#cfddd8'}
-                  strokeWidth="1.2"
-                />
-                <path
-                  d="M-20 480 Q 140 440, 280 470 T 430 450"
-                  stroke={isDark ? '#19352A' : '#cfddd8'}
-                  strokeWidth="1.2"
-                />
-
-                {/* High Elevation Contours */}
-                <path
-                  d="M70 190 C 130 180, 160 210, 210 195 C 260 180, 290 220, 340 210"
-                  stroke={isDark ? '#244F3F' : '#bfc9c2'}
-                  strokeWidth="1.5"
-                />
-                <path
-                  d="M90 220 C 140 210, 175 235, 220 225 C 265 215, 280 245, 320 235"
-                  stroke={isDark ? '#2C5D4B' : '#bfc9c2'}
-                  strokeWidth="1.5"
-                />
-                <path
-                  d="M120 250 C 160 240, 185 260, 230 250 C 270 240, 280 260, 305 255"
-                  filter="url(#softGlowLive)"
-                  stroke={isDark ? '#34D399' : '#92d4b7'}
-                  strokeOpacity={isDark ? 0.6 : 0.9}
-                  strokeWidth="2"
-                />
-
-                {/* Elevation Labels */}
-                <text
-                  x="28"
-                  y="240"
-                  fill={isDark ? '#6EE7B7' : '#586059'}
-                  fontFamily="'Space Grotesk', monospace"
-                  fontSize="10"
-                  fontWeight="700"
-                >
-                  1,420m
-                </text>
-                <text
-                  x="295"
-                  y="252"
-                  fill={isDark ? '#6EE7B7' : '#586059'}
-                  fontFamily="'Space Grotesk', monospace"
-                  fontSize="10"
-                  fontWeight="700"
-                >
-                  1,480m
-                </text>
-                <text
-                  x="285"
-                  y="385"
-                  fill={isDark ? '#4E7265' : '#707973'}
-                  fontFamily="'Space Grotesk', monospace"
-                  fontSize="9"
-                  fontWeight="600"
-                >
-                  1,360m
-                </text>
-
-                {/* Glacial Water Body: Mirror Lake */}
-                <path
-                  d="M255 105 C 285 90, 340 100, 360 125 C 380 148, 375 180, 348 195 C 320 210, 270 205, 250 182 C 230 160, 230 120, 255 105 Z"
-                  fill="url(#lakeGradLive)"
-                  stroke={isDark ? '#3B82F6' : '#7ea6fc'}
-                  strokeWidth="1.5"
-                />
-                <path
-                  d="M280 135 C 300 132, 320 136, 335 133"
-                  opacity={isDark ? 0.5 : 0.8}
-                  stroke={isDark ? '#60A5FA' : '#effcf7'}
-                  strokeLinecap="round"
-                  strokeWidth="1.5"
-                />
-                <path
-                  d="M270 155 C 290 152, 325 156, 340 152"
-                  opacity={isDark ? 0.4 : 0.7}
-                  stroke={isDark ? '#60A5FA' : '#effcf7'}
-                  strokeLinecap="round"
-                  strokeWidth="1.5"
-                />
-                <text
-                  x="302"
-                  y="172"
-                  textAnchor="middle"
-                  fill={isDark ? '#93C5FD' : '#00387e'}
-                  fontFamily="'Plus Jakarta Sans', sans-serif"
-                  fontSize="11"
-                  fontWeight="800"
-                >
-                  Mirror Lake
-                </text>
-
-                {/* Forest Trees Cluster */}
-                <g fill={isDark ? '#1B4332' : '#175c45'} opacity={isDark ? 0.7 : 0.5} transform="translate(42, 285)">
-                  <polygon points="10,0 4,11 16,11" />
-                  <polygon points="10,6 2,16 18,16" />
-                  <rect x="9" y="16" width="2" height="3" />
-                </g>
-                <g fill={isDark ? '#1B4332' : '#175c45'} opacity={isDark ? 0.6 : 0.45} transform="translate(62, 298)">
-                  <polygon points="8,0 3,9 13,9" />
-                  <polygon points="8,5 1,14 15,14" />
-                  <rect x="7" y="14" width="2" height="3" />
-                </g>
-                <g fill={isDark ? '#1B4332' : '#175c45'} opacity={isDark ? 0.7 : 0.5} transform="translate(330, 295)">
-                  <polygon points="9,0 3,10 15,10" />
-                  <polygon points="9,5 1,15 17,15" />
-                  <rect x="8" y="15" width="2" height="3" />
-                </g>
-
-                {/* Recorded Trail Path */}
-                <path
-                  d="M 88 470 C 105 430, 130 400, 140 370 C 152 334, 128 310, 148 275 C 168 240, 205 235, 218 202 C 226 182, 212 165, 215 142"
-                  filter="url(#softGlowLive)"
-                  opacity={isDark ? 0.3 : 0.4}
-                  stroke={isDark ? '#10B981' : '#92d4b7'}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="8"
-                />
-                <path
-                  d="M 88 470 C 105 430, 130 400, 140 370 C 152 334, 128 310, 148 275 C 168 240, 205 235, 218 202 C 226 182, 212 165, 215 142"
-                  stroke={isDark ? '#34D399' : '#175c45'}
-                  strokeDasharray="6 4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="3.5"
-                />
-
-                {/* Trailhead Pin */}
-                <g transform="translate(88, 470)">
-                  <circle cx="0" cy="0" r="8" fill={isDark ? '#064e3b' : '#ffffff'} filter="url(#softGlowLive)" />
-                  <circle cx="0" cy="0" r="5.5" fill={isDark ? '#10B981' : '#004330'} />
-                  <circle cx="0" cy="0" r="2.5" fill={isDark ? '#ffffff' : '#aef1d2'} />
-                </g>
-
-                {/* Dynamic Graduated Uncertainty Radius Halo */}
-                <circle
-                  cx="215"
-                  cy="142"
-                  r={uncertaintyRadius}
-                  fill="url(#haloGradLive)"
-                  className="transition-all duration-500 ease-out"
-                />
-                <circle
-                  cx="215"
-                  cy="142"
-                  r={uncertaintyRadius}
-                  fill="none"
-                  filter="url(#softGlowLive)"
-                  opacity={demoMode === 'drift' ? 0.95 : 0.8}
-                  stroke={demoMode === 'drift' ? '#EF4444' : isDark ? '#00E5FF' : '#2563EB'}
-                  strokeDasharray="4 3"
-                  strokeWidth="1.5"
-                  className="transition-all duration-500 ease-out"
-                />
-
-                {/* Estimated Drift Pill on Map */}
-                <g transform="translate(230, 126)">
-                  <rect
-                    width="48"
-                    height="18"
-                    rx="9"
-                    fill={isDark ? '#0F2820' : '#ffffff'}
-                    opacity="0.95"
-                    stroke={demoMode === 'drift' ? '#EF4444' : isDark ? '#00E5FF' : '#2563EB'}
-                    strokeWidth="1"
-                  />
-                  <text
-                    x="24"
-                    y="13"
-                    textAnchor="middle"
-                    fill={demoMode === 'drift' ? '#EF4444' : isDark ? '#67E8F9' : '#00387e'}
-                    fontFamily="'Space Grotesk', monospace"
-                    fontSize="10"
-                    fontWeight="700"
-                  >
-                    {uncertaintyLabel}
-                  </text>
-                </g>
-
-                {/* Heading Directional Cone */}
-                <path
-                  d="M 215 142 L 195 82 A 46 46 0 0 1 235 82 Z"
-                  fill={isDark ? '#00E5FF' : '#2563EB'}
-                  opacity={isDark ? 0.22 : 0.18}
-                />
-
-                {/* Current Estimated Position Blue/Cyan Dot */}
-                <circle
-                  cx="215"
-                  cy="142"
-                  r="12"
-                  fill={isDark ? '#00E5FF' : '#ffffff'}
-                  filter="url(#softGlowLive)"
-                  opacity={isDark ? 0.35 : 0.8}
-                />
-                <circle
-                  cx="215"
-                  cy="142"
-                  r="8"
-                  fill={demoMode === 'drift' ? '#DC2626' : isDark ? '#0284C7' : '#2563EB'}
-                />
-                <circle cx="215" cy="142" r="3.5" fill="#ffffff" />
-              </svg>
-            </div>
-
-            {/* Pine Ridge Trailhead Pill (Bottom-left) */}
-            <div
-              className={`absolute bottom-4 left-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full backdrop-blur-md shadow-lg border transition-colors ${
-                isDark
-                  ? 'bg-[#11201B]/90 border-[#234237] text-[#E2EBE7]'
-                  : 'bg-white/95 border-slate-200 text-slate-800'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[15px] text-[#34D399]">flag</span>
-              <span className="font-space text-[11px] font-bold">Pine Ridge Trailhead (1,240m)</span>
-            </div>
-
-            {/* High Ridge Pass Elevation Marker (Top-left) */}
-            <div
-              className={`absolute top-[85px] left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full shadow-md border transition-colors ${
-                isDark
-                  ? 'bg-[#142A22]/90 border-[#2E604F] text-white'
-                  : 'bg-[#175c45] border-[#2E604F] text-white'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[13px] text-[#6EE7B7]">north_east</span>
-              <span className="font-space text-[11px] font-semibold text-[#D1FAE5]">
-                High Ridge Pass (1,510m)
-              </span>
-            </div>
+            {/* Real map: OpenStreetMap + Lipas data shipped with the app (RealMap.tsx) */}
+            <RealMap
+              isDark={isDark}
+              zoom={zoomScale}
+              recenterKey={recenterCount}
+              position={hikeState.lastFix}
+              beacons={hikeState.beacons}
+              textured={mapLayer === 'satellite'}
+            />
 
             {/* Top Mascot Speech Card (Pathfinder mole) */}
             <div className="absolute top-2 inset-x-3 z-10 flex flex-col gap-2 pointer-events-none">
@@ -486,7 +187,7 @@ export function LiveNavigationScreen({
                           : 'text-[#04513b] bg-[#aef1d2] border-[#92d4b7]'
                       }`}
                     >
-                      Dead-Reckoning Active
+                      {scout.badge}
                     </span>
                   </div>
                   <p
@@ -494,11 +195,7 @@ export function LiveNavigationScreen({
                       isDark ? 'text-[#CFE4DC]' : 'text-slate-700'
                     }`}
                   >
-                    {demoMode === 'drift'
-                      ? '“Careful! We have drifted under dense canopy. Calibration recommended at next post!”'
-                      : demoMode === 'calibrated'
-                      ? '“Spot on! Position calibrated against ground marker #14 with pinpoint accuracy.”'
-                      : '“I\'ve got your back! Tracking your steps with inertial sensors.”'}
+                    {scout.text}
                   </p>
                 </div>
               </div>
@@ -539,7 +236,7 @@ export function LiveNavigationScreen({
               >
                 <button
                   aria-label="Zoom In"
-                  onClick={() => handleZoom(1.15)}
+                  onClick={() => handleZoom(1.5)}
                   className={`w-11 h-10 flex items-center justify-center active:scale-90 transition-colors cursor-pointer ${
                     isDark ? 'text-[#E2EBE7] hover:bg-[#1A332B]' : 'text-slate-800 hover:bg-slate-100'
                   }`}
@@ -549,7 +246,7 @@ export function LiveNavigationScreen({
                 <div className={`w-full h-px ${isDark ? 'bg-[#234237]' : 'bg-slate-200'}`} />
                 <button
                   aria-label="Zoom Out"
-                  onClick={() => handleZoom(0.85)}
+                  onClick={() => handleZoom(1 / 1.5)}
                   className={`w-11 h-10 flex items-center justify-center active:scale-90 transition-colors cursor-pointer ${
                     isDark ? 'text-[#E2EBE7] hover:bg-[#1A332B]' : 'text-slate-800 hover:bg-slate-100'
                   }`}
@@ -560,68 +257,9 @@ export function LiveNavigationScreen({
             </div>
           </div>
 
-          {/* Interactive Simulation State Switcher (Judge Demo Bar) */}
+          {/* Hike mode: start/end the hike and drop beacons (HikeUi.tsx) */}
           <div className="px-3 mt-3 z-30">
-            <div
-              className={`w-full p-1.5 rounded-2xl backdrop-blur-md border flex items-center justify-between gap-1 shadow-md ${
-                isDark ? 'bg-[#111F1B]/95 border-[#1E362E]' : 'bg-white/90 border-slate-200'
-              }`}
-            >
-              <span
-                className={`font-space text-[10px] uppercase font-bold pl-2 shrink-0 ${
-                  isDark ? 'text-[#8FA39B]' : 'text-slate-500'
-                }`}
-              >
-                Demo Modes:
-              </span>
-              <div className="flex items-center gap-1 flex-1 justify-end">
-                <button
-                  onClick={() => {
-                    playChirpSound();
-                    onSetDemoMode('normal');
-                  }}
-                  className={`px-2.5 py-1 rounded-xl font-space text-[11px] font-extrabold shadow-sm transition-all cursor-pointer ${
-                    demoMode === 'normal'
-                      ? 'bg-[#10B981] text-[#064E3B]'
-                      : isDark
-                      ? 'bg-[#182823] text-[#A6BFB5] hover:text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  Normal (78%)
-                </button>
-                <button
-                  onClick={() => {
-                    playChirpSound();
-                    onSetDemoMode('drift');
-                  }}
-                  className={`px-2.5 py-1 rounded-xl font-space text-[11px] font-bold transition-all cursor-pointer ${
-                    demoMode === 'drift'
-                      ? 'bg-amber-600 text-white font-extrabold'
-                      : isDark
-                      ? 'bg-[#182823] text-[#A6BFB5] hover:text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  High Drift (42%)
-                </button>
-                <button
-                  onClick={() => {
-                    playChirpSound();
-                    onSetDemoMode('calibrated');
-                  }}
-                  className={`px-2.5 py-1 rounded-xl font-space text-[11px] font-bold transition-all cursor-pointer ${
-                    demoMode === 'calibrated'
-                      ? 'bg-emerald-600 text-white font-extrabold'
-                      : isDark
-                      ? 'bg-[#182823] text-[#A6BFB5] hover:text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  Calibrated (96%)
-                </button>
-              </div>
-            </div>
+            <HikePanel isDark={isDark} />
           </div>
 
           {/* Bottom Dossier & Controls */}
