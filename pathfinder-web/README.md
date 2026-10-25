@@ -31,7 +31,7 @@ This serves over HTTPS with a self-signed certificate, because phones only allow
 
 | Command | What it does |
 |---|---|
-| `npm test` | Unit tests (Vitest): the math (magnetic declination is checked against NOAA's official values), plus beacon storage (run with `fake-indexeddb`, including a close-and-reopen test and the version 1 → 2 upgrade), the beacon rules, the GPS tracker (with a fake GPS and fake timers), step counting and the compass (with made-up sensor signals), and dead reckoning on made-up walks |
+| `npm test` | Unit tests (Vitest): the math (magnetic declination is checked against NOAA's official values), plus beacon storage (run with `fake-indexeddb`, including a close-and-reopen test and the version 1 → 2 upgrade), the beacon rules, the GPS tracker (with a fake GPS and fake timers), step counting and the compass (with made-up sensor signals), dead reckoning on made-up walks, and Retrace (reaching beacons, shortcuts, off track) |
 | `npm run lint` | Typecheck |
 | `npm run build` then `npm run check-offline` | Builds the app into `dist/`, then fails if anything in it loads from the internet |
 
@@ -76,6 +76,21 @@ Under thick trees or in a valley, GPS can drop out. Pathfinder then keeps estima
   - Computers have neither sensor, so dead reckoning only works on a phone.
 
 The code: `steps.ts` (step counting), `heading.ts` (tilt-proof compass heading), `sensors.ts` (the browser events), `position.ts` (GPS + dead reckoning + learning), and the existing `src/geo/deadReckoning.ts` (the math).
+
+## Retrace (find your way back)
+The **Backtrack** tab leads you back along your own beacons, newest first, to where the hike started (`src/tracking/retrace.ts`). It works with GPS, and with the estimated position when GPS is lost.
+- **Start retrace** (during a hike with at least one beacon): the newest beacon becomes the target.
+- **Reaching a beacon** (the phone vibrates) makes the one before it the target. Reaching beacon 1 means you're back at the start.
+  - "Reached" means closer than both positions' ± added together, but at least 15 m and at most 40 m, so a rough estimate can't "reach" every beacon around it.
+  - **Shortcut:** coming close to an *older* beacon than the target skips straight to it.
+  - **I'm at beacon N:** when you recognise the spot (from its note or photo), tap it to move on. Without GPS, the estimate also restarts from that beacon, which is usually more accurate than an estimate that has drifted.
+- **What it shows:**
+  - an arrow that turns with the phone (from the compass), with "Slight left", "Turn around" and so on. Without a compass it shows the bearing instead, e.g. "Head 315° NW", to follow with a real compass;
+  - the way back on the map, with the target beacon ringed;
+  - the distance and time left (at 4.3 km/h), and how many beacons are left;
+  - **off track:** if you get more than 25 m (or the position's ±, if bigger) further from the target than you'd already been, the card turns amber and says to turn around.
+- **While retracing, automatic beacons pause,** so the walk back doesn't add new ones. *Drop beacon here* still works. They start again when you stop retracing.
+- **If the app is reloaded,** retracing carries on from the same beacon (it's saved with the hike).
 
 ## The map (demo)
 - **One demo area:** a 3 × 3 km area around Tampere University's Hervanta campus, drawn from real map data.
@@ -125,7 +140,7 @@ Nothing is loaded from Google Fonts or image servers, so the app looks right off
 | `src/components/screens/DebugScreen.tsx` | The debug screen |
 | `src/geo/` | The math: distance, bearing, dead reckoning, magnetic declination (World Magnetic Model 2025) |
 | `src/beacons/` | Beacon types, settings, and the IndexedDB store |
-| `src/tracking/` | Hike mode: the beacon rules (`engine.ts`), GPS (`gps.ts`), steps and compass (`steps.ts`, `heading.ts`, `sensors.ts`), dead reckoning (`position.ts`), recordings and replays (`recording.ts`), the confidence score, keeping the screen on, the battery level, and `HikeProvider.tsx`, which runs it all |
+| `src/tracking/` | Hike mode: the beacon rules (`engine.ts`), GPS (`gps.ts`), steps and compass (`steps.ts`, `heading.ts`, `sensors.ts`), dead reckoning (`position.ts`), recordings and replays (`recording.ts`), Retrace (`retrace.ts`), the confidence score, keeping the screen on, the battery level, and `HikeProvider.tsx`, which runs it all |
 | `src/components/hike/` | The hike panel, GPS status bar and mascot messages on the Live screen |
 | `src/components/map/RealMap.tsx`, `src/map/` | The real map, and loading and projecting its data |
 | `public/maps/` | The demo map's data, built by `scripts/build_demo_map.py` |

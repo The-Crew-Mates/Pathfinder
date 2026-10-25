@@ -1,5 +1,16 @@
+// Backtrack screen: Retrace leads you back along your beacons, newest to
+// oldest, to where the hike started (src/tracking/retrace.ts, run by
+// HikeProvider.tsx). It works with GPS, and with the position estimated from
+// steps and the compass when GPS is lost. The design is the frontend team's.
+
 import { useState } from 'react';
+import { distanceMeters, pathLength } from '../../geo/distance';
+import { formatAccuracy, formatBearing, formatDistance, formatTime } from '../../lib/format';
+import { type HikeContextValueForUi, useHike } from '../../tracking/HikeProvider';
+import { WALKING_SPEED_KMH, turnInstruction } from '../../tracking/retrace';
 import { playSafetyWhistle, playChirpSound } from '../../utils/audio';
+import { GpsStatusBanner } from '../hike/HikeUi';
+import { RealMap } from '../map/RealMap';
 import mapTexture from '../../assets/images/map-texture.png';
 import molePointing from '../../assets/images/mole-pointing.jpg';
 import logoPlaceholder from '../../assets/images/logo-placeholder.jpg';
@@ -10,32 +21,128 @@ interface ActiveBacktrackScreenProps {
   onOpenCompass: () => void;
 }
 
-export function ActiveBacktrackScreen({
-  isDark,
-  onBack,
-  onOpenCompass,
-}: ActiveBacktrackScreenProps) {
-  const [isPaused, setIsPaused] = useState<boolean>(false);
-  const [isDrifting, setIsDrifting] = useState<boolean>(false);
+/** What the screen is showing: no hike, nothing to follow yet, ready, waiting for a position, guiding, or back at the start. */
+type Phase = 'no-hike' | 'no-beacons' | 'ready' | 'waiting' | 'guiding' | 'finished';
+
+function phaseOf({ hike, beacons, retrace, guidance }: HikeContextValueForUi): Phase {
+  if (!hike) return 'no-hike';
+  if (retrace?.finished) return 'finished';
+  if (retrace) return guidance ? 'guiding' : 'waiting';
+  return beacons.length === 0 ? 'no-beacons' : 'ready';
+}
+
+/** What the mole says. */
+function navigatorMessage(phase: Phase, hike: HikeContextValueForUi): string {
+  const { beacons, guidance, position } = hike;
+  switch (phase) {
+    case 'no-hike':
+      return '“Start a hike on the Trail Nav tab. I’ll drop beacons as we go, and lead us back along them.”';
+    case 'no-beacons':
+      return '“No beacons yet. The first one drops as soon as GPS finds us.”';
+    case 'ready':
+      return `“${beacons.length} ${beacons.length === 1 ? 'beacon leads' : 'beacons lead'} back to the start. Tap Start retrace whenever you want to head back.”`;
+    case 'waiting':
+      return '“Waiting for our position… Stand in the open a moment so GPS can find us.”';
+    case 'finished':
+      return '“We made it! This is where the hike started.”';
+  }
+  const g = guidance!;
+  const n = g.targetIndex + 1;
+  if (g.offTrack) return `“Hold on! We’re walking away from beacon ${n}. Let’s turn around.”`;
+  if (g.turn === null) return `“There’s no compass reading, so use a real compass: beacon ${n} is ${formatBearing(g.bearing)} from here.”`;
+  if (position?.source === 'estimated') {
+    return `“No GPS, so I’m following your steps and the compass. Beacon ${n} is about ${formatDistance(g.distanceM)} away.”`;
+  }
+  const after = g.targetIndex === 0 ? 'and that’s where we started' : `then ${g.targetIndex} more to the start`;
+  return `“This way! Beacon ${n} is ${formatDistance(g.distanceM)} away, ${after}.”`;
+}
+
+/** "1.8" + "km", or "240" + "m", for the big numbers. */
+function splitDistance(metres: number): [string, string] {
+  return metres >= 1000 ? [(metres / 1000).toFixed(1), 'km'] : [String(Math.round(metres)), 'm'];
+}
+
+export function ActiveBacktrackScreen({ isDark, onBack }: ActiveBacktrackScreenProps) {
+  const hikeState = useHike();
+  const { beacons, position, phoneHeading, retrace, guidance: g, problem, startRetrace, stopRetrace, confirmAtBeacon } =
+    hikeState;
+  const phase = phaseOf(hikeState);
+  const warn = phase === 'guiding' && g!.offTrack;
+
   const [isWhistling, setIsWhistling] = useState<boolean>(false);
   const [compassHudOpen, setCompassHudOpen] = useState<boolean>(false);
   const [mapLayer, setMapLayer] = useState<'topo' | 'satellite'>('topo');
-
-  const handleTogglePause = () => {
-    playChirpSound();
-    setIsPaused((prev) => !prev);
-  };
-
-  const handleToggleDrift = () => {
-    playChirpSound();
-    setIsDrifting((prev) => !prev);
-  };
+  const [zoomScale, setZoomScale] = useState<number>(1);
+  const [recenterCount, setRecenterCount] = useState(0);
 
   const handleSoundWhistle = async () => {
     setIsWhistling(true);
     await playSafetyWhistle();
     setIsWhistling(false);
   };
+
+  const handleZoom = (delta: number) => {
+    playChirpSound();
+    setZoomScale((prev) => Math.min(Math.max(prev * delta, 0.25), 8));
+  };
+
+  // The way back: from the hiker to the target beacon, then beacon by beacon to the start.
+  const retracePath =
+    phase === 'guiding' && position
+      ? [position, ...beacons.slice(0, g!.targetIndex + 1).reverse()]
+      : phase === 'ready'
+        ? [...(position ? [position] : []), ...[...beacons].reverse()]
+        : undefined;
+
+  // How far back to the start: what's left while guiding, the whole way back when ready.
+  const routeM =
+    phase === 'guiding'
+      ? g!.remainingM
+      : phase === 'ready'
+        ? (position ? distanceMeters(position, beacons.at(-1)!) : 0) + pathLength(beacons)
+        : null;
+  const minutesLeft = routeM === null ? null : routeM / ((WALKING_SPEED_KMH * 1000) / 60);
+  const beaconsLeft = phase === 'guiding' ? g!.beaconsLeft : phase === 'ready' ? beacons.length : phase === 'finished' ? 0 : null;
+
+  const card = isDark ? 'bg-[#14201c] border-[#233a32]' : 'bg-white border-slate-200';
+  const big = `font-space text-[22px] font-bold ${isDark ? 'text-white' : 'text-slate-900'}`;
+  const mapButton =
+    'w-10 h-10 rounded-full bg-[#14201c]/90 border border-[#233a32] backdrop-blur-md shadow-md flex items-center justify-center text-[#aef1d2] hover:bg-[#1a2c26] active:scale-90 transition-transform cursor-pointer';
+
+  // The turn card at the top.
+  const n = g ? g.targetIndex + 1 : 0;
+  const hud =
+    phase === 'guiding'
+      ? {
+          label: warn
+            ? `Off track · ${formatDistance(g!.distanceM)} to beacon ${n}`
+            : `Retrace · beacon ${n} in ${formatDistance(g!.distanceM)}`,
+          title: warn && g!.turn === null ? 'Turn around' : g!.turn === null ? `Head ${formatBearing(g!.bearing)}` : turnInstruction(g!.turn),
+          detail: g!.target.note
+            ? `Beacon ${n}: “${g!.target.note}”`
+            : `Beacon ${n} · dropped ${formatTime(g!.target.timestamp)}${g!.target.source === 'estimated' ? ' (estimated)' : ''}`,
+          next:
+            g!.targetIndex > 0
+              ? `Then beacon ${g!.targetIndex} · ${formatDistance(distanceMeters(g!.target, beacons[g!.targetIndex - 1]))}`
+              : 'That’s where the hike started',
+        }
+      : phase === 'finished'
+        ? { label: 'Retrace complete', title: 'You’re back at the start', detail: 'Beacon 1, where the hike began.', next: null }
+        : phase === 'waiting'
+          ? { label: 'Retrace', title: 'Finding your position', detail: 'Guidance starts with the first GPS fix.', next: null }
+          : phase === 'ready'
+            ? {
+                label: `Ready · ${beacons.length} ${beacons.length === 1 ? 'beacon' : 'beacons'}`,
+                title: 'Retrace your steps',
+                detail: 'Follow your beacons back, newest first, to where you started.',
+                next: null,
+              }
+            : phase === 'no-beacons'
+              ? { label: 'Retrace', title: 'No beacons yet', detail: 'The first beacon drops with the first GPS fix.', next: null }
+              : { label: 'Retrace', title: 'No hike running', detail: 'Start a hike on the Trail Nav tab first.', next: null };
+
+  // The arrow: relative to where the phone points, or north-up without a compass.
+  const arrowAngle = g ? (g.turn ?? g.bearing) : 0;
 
   return (
     <div
@@ -52,22 +159,8 @@ export function ActiveBacktrackScreen({
         }`}
       >
         <div className="flex flex-col">
-          {/* Status sub-bar */}
-          <div className="h-5 px-4 flex items-center justify-between font-space text-[10px] text-slate-400">
-            <div className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[13px] text-amber-500 font-bold">
-                signal_cellular_nodata
-              </span>
-              <span className="uppercase tracking-wider font-bold text-[9.5px] text-amber-900 bg-amber-100/90 px-1.5 py-0.5 rounded">
-                GPS Unavailable · Estimated Position
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[13px] text-emerald-400">sensors</span>
-              <span className="text-[10px] font-bold">Inertial Dead-Reckoning</span>
-              <span className="material-symbols-outlined text-[13px]">battery_charging_90</span>
-            </div>
-          </div>
+          {/* Live GPS status (HikeUi.tsx) */}
+          <GpsStatusBanner isDark={isDark} />
 
           {/* Main nav bar */}
           <div className="h-14 px-3 flex items-center justify-between">
@@ -87,16 +180,15 @@ export function ActiveBacktrackScreen({
                 src={logoPlaceholder}
               />
               <h1 className="font-headline-sm text-[17px] font-extrabold truncate ml-1 leading-tight">
-                Live Navigation
+                Retrace
               </h1>
             </div>
 
             <div className="flex items-center gap-2 pr-1">
-              {/* Presentation Demo Mode Toggle: On Track vs Simulate Drift */}
-              <button
-                onClick={handleToggleDrift}
-                className={`px-2.5 py-1 rounded-full border text-[11px] font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow-sm cursor-pointer ${
-                  isDrifting
+              {/* Retrace status pill */}
+              <div
+                className={`px-2.5 py-1 rounded-full border text-[11px] font-bold flex items-center gap-1.5 shadow-sm ${
+                  warn
                     ? 'bg-amber-900/60 border-amber-600 text-amber-200'
                     : isDark
                     ? 'bg-[#162420] border-[#233a32] text-[#aef1d2]'
@@ -105,11 +197,11 @@ export function ActiveBacktrackScreen({
               >
                 <span
                   className={`inline-block w-2 h-2 rounded-full ${
-                    isDrifting ? 'bg-amber-400 animate-ping' : 'bg-emerald-500'
+                    warn ? 'bg-amber-400 animate-ping' : retrace ? 'bg-emerald-500' : 'bg-slate-400'
                   }`}
                 />
-                <span>{isDrifting ? 'Simulate Drift' : 'On Track'}</span>
-              </button>
+                <span>{warn ? 'Off Track' : phase === 'guiding' ? 'On Track' : phase === 'finished' ? 'Back at start' : retrace ? 'Retracing' : 'Not retracing'}</span>
+              </div>
 
               <div className="w-8 h-8 rounded-full bg-[#004330] flex items-center justify-center text-white shadow-sm">
                 <span className="material-symbols-outlined text-[18px]">person</span>
@@ -120,12 +212,12 @@ export function ActiveBacktrackScreen({
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col relative w-full pt-20 pb-safe">
+      <main className="flex-1 flex flex-col relative w-full pt-[90px] pb-safe">
         <div className="flex flex-col w-full px-3.5 pb-8 gap-3">
-          {/* TOP TURN HEADS-UP DISPLAY (APPLE MAPS STYLE) */}
+          {/* TOP TURN HEADS-UP DISPLAY */}
           <div
             className={`w-full rounded-2xl p-4 shadow-xl relative overflow-hidden transition-all duration-300 ${
-              isDrifting
+              warn
                 ? 'bg-amber-900 border border-amber-600 text-white shadow-amber-900/40'
                 : 'bg-[#0f382a] border border-[#1f5c44] text-white shadow-[#0f382a]/50'
             }`}
@@ -134,64 +226,67 @@ export function ActiveBacktrackScreen({
             <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
 
             <div className="relative z-10 flex items-start gap-3.5">
-              {/* Turn Glyph Circle */}
+              {/* Turn arrow: points the way to the target beacon */}
               <div
                 className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 shadow-md ${
-                  isDrifting
-                    ? 'bg-amber-200 text-amber-950'
-                    : 'bg-[#aef1d2] text-[#04513b]'
+                  warn ? 'bg-amber-200 text-amber-950' : 'bg-[#aef1d2] text-[#04513b]'
                 }`}
               >
-                <span
-                  className="material-symbols-outlined text-[28px]"
-                  style={{ fontVariationSettings: "'FILL' 1" }}
-                >
-                  {isDrifting ? 'u_turn_left' : 'turn_slight_left'}
-                </span>
+                {phase === 'guiding' ? (
+                  <span
+                    className="material-symbols-outlined text-[28px] transition-transform duration-300"
+                    style={{ fontVariationSettings: "'FILL' 1", transform: `rotate(${arrowAngle}deg)` }}
+                    aria-label={hud.title}
+                  >
+                    navigation
+                  </span>
+                ) : (
+                  <span className="material-symbols-outlined text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                    {phase === 'finished' ? 'check_circle' : phase === 'ready' ? 'undo' : phase === 'waiting' ? 'my_location' : 'flag'}
+                  </span>
+                )}
               </div>
 
               <div className="flex-1 min-w-0">
                 <div
                   className={`flex items-center gap-1.5 font-space text-[11px] uppercase tracking-wider font-bold ${
-                    isDrifting ? 'text-amber-200' : 'text-[#aef1d2]'
+                    warn ? 'text-amber-200' : 'text-[#aef1d2]'
                   }`}
                 >
-                  <span
-                    className={`inline-block w-2 h-2 rounded-full animate-ping ${
-                      isDrifting ? 'bg-amber-400' : 'bg-[#aef1d2]'
-                    }`}
-                  />
-                  <span>
-                    {isDrifting
-                      ? 'DRIFT DETECTED • 24M OFF TRACK'
-                      : 'ACTIVE BACKTRACK · NEXT TURN 45M'}
-                  </span>
+                  {retrace && (
+                    <span
+                      className={`inline-block w-2 h-2 rounded-full animate-ping ${
+                        warn ? 'bg-amber-400' : 'bg-[#aef1d2]'
+                      }`}
+                    />
+                  )}
+                  <span className="truncate">{hud.label}</span>
                 </div>
 
                 <h2 className="font-headline-md text-[20px] font-extrabold leading-tight mt-0.5 truncate">
-                  {isDrifting ? 'Make a U-Turn Left' : 'Turn slight left'}
+                  {hud.title}
                 </h2>
 
                 <p
                   className={`font-body-sm text-[13px] truncate font-medium ${
-                    isDrifting ? 'text-amber-100' : 'text-[#bbf3dc]'
+                    warn ? 'text-amber-100' : 'text-[#bbf3dc]'
                   }`}
                 >
-                  {isDrifting
-                    ? 'Retrace 24m to rejoin recorded path at Wooden Bridge marker'
-                    : 'Rejoin recorded track at Wooden Bridge marker'}
+                  {hud.detail}
                 </p>
 
                 {/* Next Step Peek */}
-                <div className="mt-2 pt-1.5 flex items-center gap-1.5 text-white/80 font-space text-[12px] border-t border-white/10">
-                  <span className="material-symbols-outlined text-[16px]">straight</span>
-                  <span className="truncate">Then follow downward contour 320m</span>
-                </div>
+                {hud.next && (
+                  <div className="mt-2 pt-1.5 flex items-center gap-1.5 text-white/80 font-space text-[12px] border-t border-white/10">
+                    <span className="material-symbols-outlined text-[16px]">straight</span>
+                    <span className="truncate">{hud.next}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* LIVE TOPOGRAPHIC BACKTRACK MAP CANVAS */}
+          {/* LIVE BACKTRACK MAP */}
           <div
             className={`relative w-full h-80 rounded-2xl overflow-hidden shadow-lg border transition-colors ${
               isDark ? 'bg-[#0e1714] border-[#233a32]' : 'bg-[#e9f7f1] border-slate-300'
@@ -207,179 +302,36 @@ export function ActiveBacktrackScreen({
               />
             )}
 
-            {/* SVG Terrain & Luminous Contours */}
-            <svg
-              className="absolute inset-0 w-full h-full pointer-events-none"
-              fill="none"
-              viewBox="0 0 360 320"
-            >
-              <defs>
-                <filter id="trail-glow-night-bt" x="-30%" y="-30%" width="160%" height="160%">
-                  <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="#4ade80" floodOpacity="0.6" />
-                </filter>
-                <filter id="cyan-pulse-bt" x="-30%" y="-30%" width="160%" height="160%">
-                  <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="#38bdf8" floodOpacity="0.7" />
-                </filter>
-                <radialGradient id="hiker-aurora-bt" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.35" />
-                  <stop offset="100%" stopColor="#38bdf8" stopOpacity="0" />
-                </radialGradient>
-              </defs>
-
-              {/* Night mode topographic contour elevation curves */}
-              <path d="M-20 70 Q 70 30, 160 85 T 380 40" stroke={isDark ? '#1d3a30' : '#cfddd8'} strokeWidth="1.2" />
-              <path d="M-20 120 Q 90 70, 180 130 T 380 95" stroke={isDark ? '#1d3a30' : '#cfddd8'} strokeWidth="1.2" />
-              <path d="M-20 170 Q 110 115, 200 180 T 380 150" stroke={isDark ? '#224438' : '#bfc9c2'} strokeWidth="1.5" />
-              <path d="M-20 220 Q 120 160, 220 230 T 380 200" stroke={isDark ? '#1d3a30' : '#cfddd8'} strokeWidth="1.2" />
-              <path d="M-20 270 Q 140 210, 240 275 T 380 250" stroke={isDark ? '#1d3a30' : '#cfddd8'} strokeWidth="1.2" />
-              <path d="M-20 310 Q 160 260, 260 310 T 380 290" stroke={isDark ? '#1d3a30' : '#cfddd8'} strokeWidth="1.2" />
-
-              {/* Outbound Track (Muted slate dashed reference) */}
-              <path
-                d="M 68 55 C 105 85, 135 125, 175 160 C 215 195, 255 235, 292 270"
-                stroke={isDark ? '#334b42' : '#a3b0a9'}
-                strokeDasharray="4 4"
-                strokeLinecap="round"
-                strokeWidth="2.5"
-              />
-
-              {/* Glowing Recorded Return Vector (Luminous Emerald & Cyan) */}
-              <path
-                d="M 292 270 C 255 235, 215 195, 175 160 C 135 125, 105 85, 68 55"
-                filter="url(#trail-glow-night-bt)"
-                stroke="#10b981"
-                strokeLinecap="round"
-                strokeWidth="5"
-              />
-              <path
-                d="M 292 270 C 255 235, 215 195, 175 160 C 135 125, 105 85, 68 55"
-                stroke="#a7f3d0"
-                strokeDasharray="8 6"
-                strokeLinecap="round"
-                strokeWidth="2.5"
-              />
-
-              {/* Waypoint Landmark Markers */}
-              {/* Wooden Bridge Marker */}
-              <circle cx="175" cy="160" r="5" fill="#14201c" stroke="#34d399" strokeWidth="2" />
-              <text
-                x="186"
-                y="164"
-                fill="#a7f3d0"
-                fontFamily="'Plus Jakarta Sans', sans-serif"
-                fontSize="10"
-                fontWeight="700"
-                stroke="#0b1311"
-                strokeWidth="3"
-                paintOrder="stroke"
-              >
-                Wooden Bridge
-              </text>
-
-              {/* Mirror Lake Marker */}
-              <circle cx="218" cy="202" r="4.5" fill="#0284c7" stroke="#bae6fd" strokeWidth="1.5" />
-              <text
-                x="228"
-                y="206"
-                fill="#7dd3fc"
-                fontFamily="'Plus Jakarta Sans', sans-serif"
-                fontSize="9"
-                fontWeight="700"
-                stroke="#0b1311"
-                strokeWidth="3"
-                paintOrder="stroke"
-              >
-                Mirror Lake
-              </text>
-
-              {/* High Ridge Pass Peak (Summit Origin) */}
-              <circle cx="292" cy="270" r="6" fill="#1e2d27" stroke="#6ee7b7" strokeWidth="2" />
-              <text
-                x="245"
-                y="285"
-                fill="#94a3b8"
-                fontFamily="'Plus Jakarta Sans', sans-serif"
-                fontSize="9"
-                fontWeight="700"
-                stroke="#0b1311"
-                strokeWidth="3"
-                paintOrder="stroke"
-              >
-                High Ridge (1,890m)
-              </text>
-
-              {/* Destination: Pine Ridge Trailhead (1,240m) */}
-              <circle cx="68" cy="55" r="11" fill="#065f46" stroke="#34d399" strokeWidth="1.5" />
-              <circle cx="68" cy="55" r="5" fill="#6ee7b7" />
-              <text
-                x="82"
-                y="58"
-                fill="#e1ede8"
-                fontFamily="'Plus Jakarta Sans', sans-serif"
-                fontSize="10"
-                fontWeight="800"
-                stroke="#0b1311"
-                strokeWidth="3"
-                paintOrder="stroke"
-              >
-                Pine Ridge Base (1,240m)
-              </text>
-
-              {/* Estimated Position Marker (Active Hiker with ±15m Uncertainty Radius) */}
-              <g
-                transform={isDrifting ? 'translate(35, -18)' : 'translate(0, 0)'}
-                className="transition-transform duration-700 ease-out"
-              >
-                <circle
-                  cx="205"
-                  cy="188"
-                  r="24"
-                  fill="url(#hiker-aurora-bt)"
-                  stroke={isDrifting ? '#ba1a1a' : '#38bdf8'}
-                  strokeDasharray="3 3"
-                  strokeWidth="1.5"
-                  className="animate-pulse"
-                />
-                <circle
-                  cx="205"
-                  cy="188"
-                  r="7.5"
-                  fill={isDrifting ? '#ba1a1a' : '#38bdf8'}
-                  filter="url(#cyan-pulse-bt)"
-                  stroke="#ffffff"
-                  strokeWidth="2.5"
-                />
-                <polygon
-                  points="205,175 200,185 210,185"
-                  fill={isDrifting ? '#ba1a1a' : '#38bdf8'}
-                />
-              </g>
-
-              {/* Drift Vector (Shown when drifting) */}
-              {isDrifting && (
-                <path
-                  d="M 218 202 C 228 190, 240 180, 245 168"
-                  filter="url(#trail-glow-night-bt)"
-                  stroke="#f87171"
-                  strokeDasharray="5 3"
-                  strokeWidth="3.5"
-                />
-              )}
-            </svg>
+            {/* Real map: OpenStreetMap + Lipas data shipped with the app, with the way back drawn on it */}
+            <RealMap
+              isDark={isDark}
+              zoom={zoomScale}
+              recenterKey={recenterCount}
+              position={position}
+              estimated={position?.source === 'estimated'}
+              beacons={beacons}
+              textured={mapLayer === 'satellite'}
+              retracePath={retracePath}
+              targetBeaconId={phase === 'guiding' ? g!.target.id : null}
+            />
 
             {/* Map Floating Controls (Glass Cluster) */}
             <div className="absolute right-3 top-3 flex flex-col gap-2 z-20">
               <button
-                aria-label="Re-center estimated location"
-                onClick={() => playChirpSound()}
-                className="w-10 h-10 rounded-full bg-[#14201c]/90 border border-[#233a32] backdrop-blur-md shadow-md flex items-center justify-center text-[#aef1d2] hover:bg-[#1a2c26] active:scale-90 transition-transform cursor-pointer"
+                aria-label="Re-center on your position"
+                onClick={() => {
+                  playChirpSound();
+                  setRecenterCount((count) => count + 1);
+                  setZoomScale(1);
+                }}
+                className={mapButton}
               >
                 <span className="material-symbols-outlined text-[20px]">my_location</span>
               </button>
               <button
                 aria-label="Toggle Compass HUD"
                 onClick={() => setCompassHudOpen((prev) => !prev)}
-                className="w-10 h-10 rounded-full bg-[#14201c]/90 border border-[#233a32] backdrop-blur-md shadow-md flex items-center justify-center text-[#aef1d2] hover:bg-[#1a2c26] active:scale-90 transition-transform cursor-pointer"
+                className={mapButton}
               >
                 <span
                   className="material-symbols-outlined text-[20px]"
@@ -391,71 +343,107 @@ export function ActiveBacktrackScreen({
               <button
                 aria-label="Topographic Layer"
                 onClick={() => setMapLayer((prev) => (prev === 'topo' ? 'satellite' : 'topo'))}
-                className="w-10 h-10 rounded-full bg-[#14201c]/90 border border-[#233a32] backdrop-blur-md shadow-md flex items-center justify-center text-[#92d4b7] hover:bg-[#1a2c26] active:scale-90 transition-transform cursor-pointer"
+                className={mapButton}
               >
                 <span className="material-symbols-outlined text-[20px]">layers</span>
               </button>
             </div>
 
-            {/* Floating Destination Pill: Pine Ridge Trailhead */}
-            <div className="absolute left-3 top-3 z-10 bg-[#14201c]/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-md flex items-center gap-2 border border-[#233a32]">
-              <span className="material-symbols-outlined text-[#34d399] text-[18px]">flag</span>
-              <div className="flex flex-col">
-                <span className="font-headline-sm text-[12px] leading-tight font-bold text-[#f1f8f5]">
-                  Pine Ridge Trailhead
-                </span>
-                <span className="font-space text-[10px] text-[#92d4b7] font-semibold">
-                  1,240m • 1.8 km to base
-                </span>
-              </div>
+            {/* Zoom */}
+            <div className="absolute right-3 bottom-3 z-20 flex flex-col rounded-full overflow-hidden bg-[#14201c]/90 border border-[#233a32] backdrop-blur-md shadow-md">
+              <button
+                aria-label="Zoom In"
+                onClick={() => handleZoom(1.5)}
+                className="w-10 h-9 flex items-center justify-center text-[#aef1d2] active:scale-90 transition-transform cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[20px]">add</span>
+              </button>
+              <div className="w-full h-px bg-[#233a32]" />
+              <button
+                aria-label="Zoom Out"
+                onClick={() => handleZoom(1 / 1.5)}
+                className="w-10 h-9 flex items-center justify-center text-[#aef1d2] active:scale-90 transition-transform cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[20px]">remove</span>
+              </button>
             </div>
+
+            {/* Floating Destination Pill: the target beacon */}
+            {(phase === 'guiding' || phase === 'finished') && (
+              <div className="absolute left-3 top-3 z-10 bg-[#14201c]/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-md flex items-center gap-2 border border-[#233a32] max-w-[70%]">
+                <span className="material-symbols-outlined text-[#34d399] text-[18px]">flag</span>
+                <div className="flex flex-col min-w-0">
+                  <span className="font-headline-sm text-[12px] leading-tight font-bold text-[#f1f8f5] truncate">
+                    {phase === 'finished' ? 'Start of the hike' : `Beacon ${n}`}
+                  </span>
+                  <span className="font-space text-[10px] text-[#92d4b7] font-semibold truncate">
+                    {phase === 'finished'
+                      ? 'You made it back'
+                      : `${formatDistance(g!.distanceM)} · ${formatBearing(g!.bearing)}`}
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Route Direction Badge */}
-            <div className="absolute left-3 bottom-3 z-10 bg-[#14201c]/90 backdrop-blur-md px-3 py-1 rounded-full shadow-sm flex items-center gap-1.5 font-space text-[11px] text-[#cbdad4] border border-[#233a32]">
-              <span className="material-symbols-outlined text-amber-400 text-[14px]">
-                sensors_off
-              </span>
-              <span className="font-medium text-[#e1ede8]">
-                Following recorded route in reverse
-              </span>
-            </div>
+            {retrace && !retrace.finished && (
+              <div className="absolute left-3 bottom-6 z-10 bg-[#14201c]/90 backdrop-blur-md px-3 py-1 rounded-full shadow-sm flex items-center gap-1.5 font-space text-[11px] text-[#cbdad4] border border-[#233a32]">
+                <span className="material-symbols-outlined text-amber-400 text-[14px]">
+                  {position?.source === 'estimated' ? 'sensors_off' : 'satellite_alt'}
+                </span>
+                <span className="font-medium text-[#e1ede8]">
+                  {position?.source === 'estimated' ? 'Following beacons on an estimate' : 'Following your beacons back'}
+                </span>
+              </div>
+            )}
 
-            {/* In-Map Interactive Compass Overlay HUD */}
+            {/* In-Map Compass Overlay HUD: the dial turns with the phone, the needle points to the beacon */}
             {compassHudOpen && (
               <div className="absolute inset-0 z-30 bg-[#0e1714]/95 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-in fade-in">
                 <button
+                  aria-label="Close compass"
                   onClick={() => setCompassHudOpen(false)}
                   className="absolute top-3 right-3 w-8 h-8 rounded-full bg-[#1e2d27] flex items-center justify-center text-[#e1ede8] cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-[18px]">close</span>
                 </button>
-                <div className="relative w-36 h-36 rounded-full border-4 border-dashed border-[#1f5c44] flex items-center justify-center mb-2">
+                <div
+                  className="relative w-36 h-36 rounded-full border-4 border-dashed border-[#1f5c44] flex items-center justify-center mb-2 transition-transform duration-300"
+                  style={{ transform: `rotate(${-(phoneHeading ?? 0)}deg)` }}
+                >
                   <div className="absolute top-2 text-[11px] font-bold text-red-400">N</div>
                   <div className="absolute bottom-2 text-[11px] font-bold text-[#707973]">S</div>
                   <div className="absolute right-2 text-[11px] font-bold text-[#707973]">E</div>
                   <div className="absolute left-2 text-[11px] font-bold text-[#707973]">W</div>
-                  <div className="w-1.5 h-24 bg-gradient-to-t from-slate-600 to-red-500 rounded-full -rotate-45 shadow" />
+                  {g && (
+                    <div
+                      className="w-1.5 h-24 bg-gradient-to-t from-slate-600 to-red-500 rounded-full shadow"
+                      style={{ transform: `rotate(${g.bearing}deg)` }}
+                    />
+                  )}
                   <div className="w-4 h-4 rounded-full bg-[#10b981] border-2 border-[#0b1311] absolute" />
                 </div>
                 <span className="font-headline-md text-[20px] font-bold text-[#f1f8f5]">
-                  315° NW
+                  {g ? formatBearing(g.bearing) : '—'}
                 </span>
                 <span className="font-space text-[11px] text-[#92d4b7] font-semibold">
-                  Inertial Bearing to Trailhead
+                  {g ? `Bearing to beacon ${n} (true north)` : 'Start retrace to get a bearing'}
                 </span>
                 <span className="mt-1 text-[11px] bg-[#175c45] text-[#aef1d2] px-2 py-0.5 rounded-full font-bold border border-[#233a32]">
-                  Reverse Bearing Aligned
+                  {phoneHeading === null
+                    ? 'No compass reading: dial shows north up'
+                    : g && g.turn !== null
+                      ? Math.abs(g.turn) < 20
+                        ? 'Facing the right way'
+                        : turnInstruction(g.turn)
+                      : `Phone points ${formatBearing(phoneHeading)}`}
                 </span>
               </div>
             )}
           </div>
 
           {/* REASSURING MASCOT COMPANION CARD */}
-          <div
-            className={`w-full rounded-2xl p-4 shadow-md flex items-center gap-3.5 relative overflow-hidden border ${
-              isDark ? 'bg-[#14201c] border-[#233830]' : 'bg-white border-slate-200'
-            }`}
-          >
+          <div className={`w-full rounded-2xl p-4 shadow-md flex items-center gap-3.5 relative overflow-hidden border ${card}`}>
             {/* Mole Mascot pointing forward */}
             <div className="relative w-20 h-20 flex-shrink-0">
               <img
@@ -488,9 +476,7 @@ export function ActiveBacktrackScreen({
                   isDark ? 'text-[#f1f8f5]' : 'text-slate-800'
                 }`}
               >
-                {isDrifting
-                  ? '“Hold on! Our footsteps are diverging from the recorded trail. Let’s turn back 20 steps to reconnect!”'
-                  : '“This way! Retracing our recorded steps back down toward Pine Ridge Trailhead.”'}
+                {navigatorMessage(phase, hikeState)}
               </p>
             </div>
           </div>
@@ -498,143 +484,128 @@ export function ActiveBacktrackScreen({
           {/* TELEMETRY & RETURN METRICS (3-COLUMN HUD) */}
           <div className="grid grid-cols-3 gap-2">
             {/* Distance HUD */}
-            <div
-              className={`rounded-2xl p-3 shadow-sm flex flex-col items-center text-center border ${
-                isDark ? 'bg-[#14201c] border-[#233a32]' : 'bg-white border-slate-200'
-              }`}
-            >
-              <span className="font-space text-[10px] uppercase text-[#92d4b7] font-bold">
-                Rem. Dist
-              </span>
+            <div className={`rounded-2xl p-3 shadow-sm flex flex-col items-center text-center border ${card}`}>
+              <span className="font-space text-[10px] uppercase text-[#92d4b7] font-bold">Rem. Dist</span>
               <div className="flex items-baseline gap-0.5 mt-0.5">
-                <span
-                  className={`font-space text-[22px] font-bold ${
-                    isDark ? 'text-white' : 'text-slate-900'
-                  }`}
-                >
-                  1.8
-                </span>
-                <span className="font-space text-[12px] text-[#92d4b7] font-semibold">km</span>
+                <span className={big}>{routeM === null ? '—' : splitDistance(routeM)[0]}</span>
+                {routeM !== null && (
+                  <span className="font-space text-[12px] text-[#92d4b7] font-semibold">{splitDistance(routeM)[1]}</span>
+                )}
               </div>
-              <div className="flex items-center gap-0.5 text-[#34d399] text-[11px] font-bold mt-1">
-                <span className="material-symbols-outlined text-[13px]">arrow_downward</span>
-                <span>-0.4 km</span>
+              <div className="flex items-center gap-0.5 text-slate-400 text-[11px] font-semibold mt-1">
+                <span>to the start</span>
               </div>
             </div>
 
             {/* Est. Time HUD */}
-            <div
-              className={`rounded-2xl p-3 shadow-sm flex flex-col items-center text-center border ${
-                isDark ? 'bg-[#14201c] border-[#233a32]' : 'bg-white border-slate-200'
-              }`}
-            >
-              <span className="font-space text-[10px] uppercase text-[#92d4b7] font-bold">
-                Est. Time
-              </span>
+            <div className={`rounded-2xl p-3 shadow-sm flex flex-col items-center text-center border ${card}`}>
+              <span className="font-space text-[10px] uppercase text-[#92d4b7] font-bold">Est. Time</span>
               <div className="flex items-baseline gap-0.5 mt-0.5">
-                <span
-                  className={`font-space text-[22px] font-bold ${
-                    isDark ? 'text-white' : 'text-slate-900'
-                  }`}
-                >
-                  34
-                </span>
-                <span className="font-space text-[12px] text-[#92d4b7] font-semibold">min</span>
+                <span className={big}>{minutesLeft === null ? '—' : Math.max(1, Math.round(minutesLeft))}</span>
+                {minutesLeft !== null && <span className="font-space text-[12px] text-[#92d4b7] font-semibold">min</span>}
               </div>
               <div className="flex items-center gap-0.5 text-slate-400 text-[11px] font-semibold mt-1">
                 <span className="material-symbols-outlined text-[13px]">schedule</span>
-                <span>4:15 PM</span>
+                <span>{minutesLeft === null ? '—' : formatTime(Date.now() + minutesLeft * 60_000)}</span>
               </div>
             </div>
 
-            {/* Descent Elevation HUD */}
-            <div
-              className={`rounded-2xl p-3 shadow-sm flex flex-col items-center text-center border ${
-                isDark ? 'bg-[#14201c] border-[#233a32]' : 'bg-white border-slate-200'
-              }`}
-            >
-              <span className="font-space text-[10px] uppercase text-[#92d4b7] font-bold">
-                Descent
-              </span>
+            {/* Beacons Left HUD */}
+            <div className={`rounded-2xl p-3 shadow-sm flex flex-col items-center text-center border ${card}`}>
+              <span className="font-space text-[10px] uppercase text-[#92d4b7] font-bold">Beacons</span>
               <div className="flex items-baseline gap-0.5 mt-0.5">
-                <span
-                  className={`font-space text-[22px] font-bold ${
-                    isDark ? 'text-white' : 'text-slate-900'
-                  }`}
-                >
-                  180
-                </span>
-                <span className="font-space text-[12px] text-[#92d4b7] font-semibold">m</span>
+                <span className={big}>{beaconsLeft ?? '—'}</span>
               </div>
               <div className="flex items-center gap-0.5 text-[#34d399] text-[11px] font-bold mt-1">
-                <span className="material-symbols-outlined text-[13px]">south_east</span>
-                <span>Steady</span>
+                <span className="material-symbols-outlined text-[13px]">pin_drop</span>
+                <span>left</span>
               </div>
             </div>
           </div>
 
-          {/* STATUS INDICATOR & ESTIMATED POSITION UNCERTAINTY */}
+          {/* STATUS INDICATOR & POSITION UNCERTAINTY */}
           <div
-            className={`w-full border rounded-2xl px-4 py-2.5 flex items-center justify-between shadow-sm transition-colors ${
-              isDrifting
-                ? 'bg-amber-950/40 border-amber-500/50'
-                : isDark
-                ? 'bg-[#14201c] border-[#233a32]'
-                : 'bg-white border-slate-200'
+            className={`w-full border rounded-2xl px-4 py-2.5 flex items-center justify-between gap-2 shadow-sm transition-colors ${
+              warn ? 'bg-amber-950/40 border-amber-500/50' : card
             }`}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               <div
-                className={`w-7 h-7 rounded-full flex items-center justify-center ${
-                  isDrifting ? 'bg-amber-600 text-white' : 'bg-[#175c45] text-[#aef1d2]'
+                className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+                  warn ? 'bg-amber-600 text-white' : 'bg-[#175c45] text-[#aef1d2]'
                 }`}
               >
-                <span className="material-symbols-outlined text-[17px]">
-                  {isDrifting ? 'warning' : 'timeline'}
-                </span>
+                <span className="material-symbols-outlined text-[17px]">{warn ? 'warning' : 'timeline'}</span>
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="font-headline-sm text-[13px] font-bold leading-snug">
-                  {isDrifting ? 'Track Divergence Warning' : 'Recorded Track Guidance'}
+                  {warn
+                    ? 'Walking away from the beacon'
+                    : position?.source === 'estimated'
+                      ? 'Estimated from steps + compass'
+                      : position
+                        ? 'GPS position'
+                        : 'No position yet'}
                 </p>
-                <p
-                  className={`font-space text-[10px] ${
-                    isDrifting ? 'text-amber-300' : 'text-[#92d4b7]'
-                  }`}
-                >
-                  {isDrifting
-                    ? 'Bearing deviated 38° south • Retrace to last recorded marker'
-                    : 'Estimated position ±15m uncertainty • Sensor-assisted inertial return'}
+                <p className={`font-space text-[10px] truncate ${warn ? 'text-amber-300' : 'text-[#92d4b7]'}`}>
+                  {position ? `Position ${formatAccuracy(position.accuracyM)}` : 'Waiting for GPS'}
+                  {' · '}
+                  {phoneHeading === null ? 'no compass reading' : `phone points ${formatBearing(phoneHeading)}`}
                 </p>
               </div>
             </div>
             <span
-              className={`font-space text-[10px] uppercase font-bold px-2.5 py-1 rounded-full border ${
-                isDrifting
+              className={`font-space text-[10px] uppercase font-bold px-2.5 py-1 rounded-full border shrink-0 ${
+                warn
                   ? 'bg-amber-200 text-amber-950 border-amber-300'
                   : 'bg-[#175c45]/70 text-[#aef1d2] border-[#233a32]'
               }`}
             >
-              {isDrifting ? 'Off Track' : 'Guide Active'}
+              {warn ? 'Off Track' : phase === 'guiding' ? 'Guide Active' : phase === 'finished' ? 'Done' : phase === 'ready' ? 'Ready' : phase === 'waiting' ? 'Waiting' : 'Idle'}
             </span>
           </div>
 
           {/* GLOVE-FRIENDLY LARGE ACTION & SAFETY ZONE */}
           <div className="flex flex-col gap-2.5 mt-1">
-            {/* Primary Glove-Friendly Pause / Resume Backtrack */}
+            {/* Primary: start or stop retracing */}
             <button
-              onClick={handleTogglePause}
-              className={`w-full h-14 rounded-full font-headline-sm text-[16px] font-bold flex items-center justify-center gap-2.5 shadow-lg active:scale-[0.98] transition-all border cursor-pointer ${
-                isPaused
+              onClick={() => {
+                playChirpSound();
+                if (retrace) stopRetrace();
+                else startRetrace();
+              }}
+              disabled={phase === 'no-hike' || phase === 'no-beacons'}
+              className={`w-full h-14 rounded-full font-headline-sm text-[16px] font-bold flex items-center justify-center gap-2.5 shadow-lg active:scale-[0.98] transition-all border cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                retrace && !retrace.finished
                   ? 'bg-amber-700 text-white border-amber-500 hover:bg-amber-600'
                   : 'bg-[#175c45] text-white border-[#278263] hover:bg-[#1c6f53]'
               }`}
             >
               <span className="material-symbols-outlined text-[24px]">
-                {isPaused ? 'play_circle' : 'pause_circle'}
+                {retrace ? (retrace.finished ? 'check_circle' : 'pause_circle') : 'play_circle'}
               </span>
-              <span>{isPaused ? 'Resume Backtrack' : 'Pause Backtrack'}</span>
+              <span>{retrace ? (retrace.finished ? 'Done' : 'Stop retrace') : 'Start retrace'}</span>
             </button>
+
+            {/* The hiker recognises the beacon (its note or photo): move on to the next one */}
+            {phase === 'guiding' && (
+              <button
+                onClick={() => {
+                  playChirpSound();
+                  confirmAtBeacon();
+                }}
+                className={`w-full py-3 rounded-full font-headline-sm text-[14px] font-bold flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-all border cursor-pointer ${
+                  isDark
+                    ? 'bg-[#1e2d27] text-[#aef1d2] border-[#233a32] hover:bg-[#253932]'
+                    : 'bg-white text-emerald-800 border-slate-300 hover:bg-slate-100'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[20px]">pin_drop</span>
+                <span>I’m at beacon {n}</span>
+              </button>
+            )}
+
+            {problem && <p className="text-[12px] text-red-400 text-center">{problem}</p>}
 
             {/* Secondary Emergency & Controls Grid */}
             <div className="grid grid-cols-2 gap-2.5">
@@ -658,9 +629,12 @@ export function ActiveBacktrackScreen({
                 <span>{isWhistling ? 'Sounding SOS...' : 'Sound Safety Whistle'}</span>
               </button>
 
-              {/* Complete / End Navigation */}
+              {/* Stop retracing and go back to the map */}
               <button
-                onClick={onBack}
+                onClick={() => {
+                  stopRetrace();
+                  onBack();
+                }}
                 className={`h-13 py-3 rounded-full font-headline-sm text-[13px] font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-transform border cursor-pointer ${
                   isDark
                     ? 'bg-[#1e2d27] text-[#e1ede8] border-[#233a32] hover:bg-[#253932]'
@@ -670,7 +644,7 @@ export function ActiveBacktrackScreen({
                 <span className="material-symbols-outlined text-[20px] text-[#92d4b7]">
                   check_circle
                 </span>
-                <span>End Navigation</span>
+                <span>{retrace ? 'End Navigation' : 'Back to map'}</span>
               </button>
             </div>
           </div>
