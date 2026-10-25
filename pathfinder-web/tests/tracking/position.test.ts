@@ -8,6 +8,7 @@ import {
   type PositionStep,
   currentPosition,
   newPosition,
+  positionAtBeacon,
   positionFix,
   positionGpsLost,
   positionHeading,
@@ -172,5 +173,40 @@ describe('when GPS is lost', () => {
     expect(back).toMatchObject({ kind: 'gps-back', estimatedAccuracyM: 12.5 });
     expect(back && back.kind === 'gps-back' && back.errorM).toBeGreaterThan(10);
     expect(currentPosition(r.state)).toMatchObject({ ...real, source: 'gps' });
+  });
+});
+
+describe('at a beacon (Retrace)', () => {
+  /** GPS lost, then 100 steps east: the estimate is 75 m east of START, ±12.5 m. */
+  function drifted() {
+    const r = runner();
+    r.take(positionFix(r.state, fixAt(START, 0), settings));
+    r.set(compass(r.state, 90, T0 + 1000));
+    r.take(positionGpsLost(r.state, T0 + 2000));
+    r.take(positionSteps(r.state, 100, T0 + 3000, settings));
+    return r;
+  }
+
+  it('restarts the estimate from the beacon while GPS is lost', () => {
+    const r = drifted();
+    r.set(positionAtBeacon(r.state, START, 5, T0 + 4000));
+    expect(currentPosition(r.state)).toMatchObject({ ...START, accuracyM: 5, source: 'estimated' });
+    // The jump isn't counted as walking by the beacon rules.
+    expect(r.state.engine.anchor).toMatchObject({ ...START });
+    r.take(positionSteps(r.state, 40, T0 + 5000, settings)); // 30 m on from the beacon
+    expect(distanceMeters(START, currentPosition(r.state)!)).toBeCloseTo(30, 3);
+  });
+
+  it('keeps the estimate if the beacon is less certain than it', () => {
+    const r = drifted();
+    const before = r.state;
+    expect(positionAtBeacon(before, START, 30, T0 + 4000)).toBe(before);
+  });
+
+  it('changes nothing while GPS works', () => {
+    const r = runner();
+    r.take(positionFix(r.state, fixAt(START, 0), settings));
+    const before = r.state;
+    expect(positionAtBeacon(before, destinationPoint(START, 50, 0), 5, T0 + 1000)).toBe(before);
   });
 });

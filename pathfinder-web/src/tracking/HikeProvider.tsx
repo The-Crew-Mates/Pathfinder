@@ -9,12 +9,18 @@
 // with the screen off. When the page comes back after the screen was off, it
 // asks for a GPS fix straight away and catches up on the time rule.
 // If the app is reloaded during a hike, the hike carries on from its last beacon.
+//
+// Retrace (retrace.ts) runs here too: it leads the hiker back along the
+// beacons. While it runs, automatic beacons aren't saved, so the walk back
+// doesn't add new ones; dropping one by hand still works.
 
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
 
 import { DEFAULT_SETTINGS, type Settings } from '../beacons/settings';
 import type { Beacon, Hike } from '../beacons/types';
 import { DEFAULT_STEP_LENGTH_M } from '../geo/deadReckoning';
+import { angleDifference } from '../geo/angles';
+import { magneticToTrue } from '../geo/declination';
 import { useStore } from '../lib/StoreProvider';
 import { useHikeData } from '../lib/useHikeData';
 import { type Drop, type Fix, newEngine, resumeEngine } from './engine';
@@ -25,9 +31,11 @@ import {
   type PositionEvent,
   type PositionState,
   type PositionStep,
+  HEADING_STALE_MS,
   currentPosition,
   distanceFromCurrent,
   newPosition,
+  positionAtBeacon,
   positionFix,
   positionGpsLost,
   positionHeading,
@@ -36,6 +44,15 @@ import {
   positionTick,
 } from './position';
 import { type Reading, TICK_MS } from './recording';
+import {
+  type RetraceGuidance,
+  type RetraceState,
+  confirmAtBeacon as confirmRetrace,
+  newRetrace,
+  resumeRetrace,
+  retraceGuidance,
+  updateRetrace,
+} from './retrace';
 import { MotionSensors, requestSensorPermission, type SensorsStatus } from './sensors';
 import { type Battery, useBattery } from './useBattery';
 import { ScreenWakeLock, type WakeLockStatus } from './wakeLock';
@@ -45,6 +62,11 @@ const SAVE_READINGS_MS = 30_000; // how often recorded readings are saved
 const RECORD_HEADING_MS = 1000; // the compass is recorded at most once a second
 const REFRESH_MS = 1000; // how often the screens are told about new steps
 const TIMELINE_LENGTH = 12;
+// The compass arrow on the Backtrack screen: refreshed at most this often, and
+// only for a turn of at least HEADING_SHOW_STEP degrees, so the whole app
+// isn't redrawn for every tiny wobble.
+const HEADING_SHOW_MS = 250;
+const HEADING_SHOW_STEP = 2;
 
 /** A moment worth showing on the Confidence screen's timeline. */
 export type TimelineEvent = PositionEvent | { kind: 'gps-first'; at: number; accuracyM: number };
@@ -82,6 +104,17 @@ type HikeContextValue = {
   setSimulateGpsLoss: (on: boolean) => void;
   /** iPhone: ask for motion and compass access (must be called from a tap). */
   enableSensors: () => Promise<void>;
+  /** Where the phone points, in degrees from TRUE north, or null without a recent compass reading. */
+  phoneHeading: number | null;
+  /** Retrace progress, or null when not retracing. */
+  retrace: RetraceState | null;
+  /** Where to go next while retracing, or null (not retracing, finished, or no position yet). */
+  guidance: RetraceGuidance | null;
+  /** Start leading the hiker back from the newest beacon. */
+  startRetrace: () => void;
+  stopRetrace: () => void;
+  /** The hiker is at the target beacon: move on to the one before it. */
+  confirmAtBeacon: () => void;
 };
 
 /** What the hike UI can read and do. */
@@ -102,6 +135,8 @@ export function HikeProvider({ children }: { children: ReactNode }) {
   const [simulatingGpsLoss, setSimulatingGpsLoss] = useState(false);
   const [truth, setTruth] = useState<TruthCheck | null>(null);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+  const [phoneHeading, setPhoneHeading] = useState<number | null>(null);
+  const [retrace, setRetraceState] = useState<RetraceState | null>(null);
   // A copy of the position state for the screens, refreshed at most once a second.
   const [shown, setShown] = useState<PositionState>(() => newPosition());
 
@@ -116,11 +151,20 @@ export function HikeProvider({ children }: { children: ReactNode }) {
   const lastRecordedHeadingAt = useRef(0);
   const lastShownAt = useRef(0);
   const savedStepLength = useRef<number | null>(null);
+  const shownHeading = useRef<{ trueHeading: number; at: number } | null>(null);
+  const retracing = useRef<RetraceState | null>(null);
+  const latestBeacons = useRef<Beacon[]>(beacons);
+  latestBeacons.current = beacons;
   // Saving is done one step at a time, in order, so two quick drops can't get mixed up.
   const queue = useRef<Promise<void>>(Promise.resolve());
 
   const store = storeContext?.store ?? null;
   const changed = storeContext?.changed;
+
+  const setRetrace = useCallback((next: RetraceState | null) => {
+    retracing.current = next;
+    setRetraceState(next);
+  }, []);
 
   // Settings can be changed on the debug screen during a hike; pick them up.
   const version = storeContext?.version;
@@ -184,11 +228,21 @@ export function HikeProvider({ children }: { children: ReactNode }) {
     }, 'The sensor recording couldn’t be saved');
   }, [store, enqueue]);
 
-  /** Apply a step from position.ts: save its beacons and note its events. */
+  /** Remember how far Retrace has got, so a reload carries on from there. */
+  const saveRetraceIndex = useCallback(
+    (index: number | null) => {
+      if (!store || !hikeId.current) return;
+      const id = hikeId.current;
+      enqueue(() => store.setRetraceIndex(id, index), 'Retrace progress couldn’t be saved');
+    },
+    [store, enqueue],
+  );
+
+  /** Apply a step from position.ts: save its beacons (not while retracing) and note its events. */
   const take = useCallback(
     (step: PositionStep) => {
       tracking.current = step.state;
-      for (const drop of step.drops) save(drop);
+      if (!retracing.current) for (const drop of step.drops) save(drop);
       if (step.events.length > 0) {
         setTimeline((list) => [...list, ...step.events].slice(-TIMELINE_LENGTH));
         refresh();
@@ -207,6 +261,9 @@ export function HikeProvider({ children }: { children: ReactNode }) {
       setTruth(null);
       setSimulatingGpsLoss(false);
       setProblem(null);
+      setRetrace(null);
+      shownHeading.current = null;
+      setPhoneHeading(null);
       refresh();
 
       // Start from the step length learned on earlier hikes.
@@ -264,6 +321,15 @@ export function HikeProvider({ children }: { children: ReactNode }) {
             lastRecordedHeadingAt.current = time;
             readings.current.push({ t: time, kind: 'heading', magnetic: Math.round(magnetic * 10) / 10 });
           }
+          const trueHeading = magneticToTrue(magnetic, tracking.current.declination);
+          const last = shownHeading.current;
+          if (
+            !last ||
+            (time - last.at >= HEADING_SHOW_MS && Math.abs(angleDifference(last.trueHeading, trueHeading)) >= HEADING_SHOW_STEP)
+          ) {
+            shownHeading.current = { trueHeading, at: time };
+            setPhoneHeading(trueHeading);
+          }
         },
         onStatus: setSensors,
       });
@@ -272,7 +338,7 @@ export function HikeProvider({ children }: { children: ReactNode }) {
       screenLock.current ??= new ScreenWakeLock(setWakeLock);
       void screenLock.current.enable();
     },
-    [store, take, refresh],
+    [store, take, refresh, setRetrace],
   );
 
   const stopTracking = useCallback(() => {
@@ -286,8 +352,11 @@ export function HikeProvider({ children }: { children: ReactNode }) {
     tracking.current = newPosition();
     setSimulatingGpsLoss(false);
     setTruth(null);
+    setRetrace(null);
+    shownHeading.current = null;
+    setPhoneHeading(null);
     refresh();
-  }, [saveReadings, refresh]);
+  }, [saveReadings, refresh, setRetrace]);
 
   // Carry on a hike that was running when the app was closed or reloaded.
   const resumed = useRef(false);
@@ -300,9 +369,10 @@ export function HikeProvider({ children }: { children: ReactNode }) {
         const saved = await store.listBeacons(current.id);
         // No tap here, so an iPhone will ask for the sensors with a button.
         startTracking(current.id, newPosition(DEFAULT_STEP_LENGTH_M, resumeEngine(saved.at(-1) ?? null)), 'unknown');
+        if (current.retraceIndex !== null) setRetrace(resumeRetrace(current.retraceIndex));
       }
     })();
-  }, [store, startTracking]);
+  }, [store, startTracking, setRetrace]);
 
   // Check the time rule regularly, save the recording now and then, and catch
   // up straight away when the page comes back after the screen was off.
@@ -311,6 +381,12 @@ export function HikeProvider({ children }: { children: ReactNode }) {
     const tick = () => {
       if (!hikeId.current) return;
       take(positionTick(tracking.current, Date.now(), settings.current));
+      // The compass stopped reporting (or never started): stop steering by it.
+      const heading = tracking.current.heading;
+      if (shownHeading.current && (!heading || Date.now() - heading.at > HEADING_STALE_MS)) {
+        shownHeading.current = null;
+        setPhoneHeading(null);
+      }
       refresh();
       if (Date.now() - lastSaved >= SAVE_READINGS_MS) {
         lastSaved = Date.now();
@@ -359,7 +435,10 @@ export function HikeProvider({ children }: { children: ReactNode }) {
     stopTracking();
     setProblem(null); // a GPS problem from this hike no longer matters
     await queue.current; // let the last readings be saved first
-    if (current) await store.setHikeStatus(current.id, 'ended', Date.now());
+    if (current) {
+      if (current.retraceIndex !== null) await store.setRetraceIndex(current.id, null);
+      await store.setHikeStatus(current.id, 'ended', Date.now());
+    }
     changed?.();
   }, [store, changed, stopTracking]);
 
@@ -403,6 +482,54 @@ export function HikeProvider({ children }: { children: ReactNode }) {
     if (hikeId.current) motion.current?.start(allowed);
   }, []);
 
+  // Retrace: each time the position (or the beacons) change, check whether the
+  // target beacon has been reached, and save the progress when it moves on.
+  useEffect(() => {
+    const here = currentPosition(shown);
+    if (!retrace || !here || !hikeId.current) return;
+    const { state, arrived } = updateRetrace(retrace, beacons, here);
+    if (state === retrace) return;
+    setRetrace(state);
+    if (arrived !== null) {
+      navigator.vibrate?.(200);
+      saveRetraceIndex(state.targetIndex);
+    }
+  }, [shown, beacons, retrace, setRetrace, saveRetraceIndex]);
+
+  const startRetrace = useCallback(() => {
+    if (!hikeId.current) {
+      setProblem('Start a hike first: Retrace leads you back along its beacons.');
+      return;
+    }
+    const state = newRetrace(latestBeacons.current);
+    if (!state) {
+      setProblem('No beacons yet. The first one drops with the first GPS position.');
+      return;
+    }
+    setProblem(null);
+    setRetrace(state);
+    saveRetraceIndex(state.targetIndex);
+  }, [setRetrace, saveRetraceIndex]);
+
+  const stopRetrace = useCallback(() => {
+    if (!retracing.current) return;
+    setRetrace(null);
+    saveRetraceIndex(null);
+  }, [setRetrace, saveRetraceIndex]);
+
+  const confirmAtBeacon = useCallback(() => {
+    const current = retracing.current;
+    const list = latestBeacons.current;
+    if (!current || current.finished || list.length === 0) return;
+    const beacon = list[Math.min(current.targetIndex, list.length - 1)];
+    // Without GPS, the beacon is a better idea of where we are than the estimate.
+    tracking.current = positionAtBeacon(tracking.current, beacon, beacon.accuracyM, Date.now());
+    const next = confirmRetrace(current);
+    setRetrace(next);
+    saveRetraceIndex(next.targetIndex);
+    refresh();
+  }, [setRetrace, saveRetraceIndex, refresh]);
+
   const position = currentPosition(shown);
   const value: HikeContextValue = {
     hike,
@@ -426,6 +553,12 @@ export function HikeProvider({ children }: { children: ReactNode }) {
     dropBeaconHere,
     setSimulateGpsLoss,
     enableSensors,
+    phoneHeading,
+    retrace,
+    guidance: retrace && position ? retraceGuidance(retrace, beacons, position, phoneHeading) : null,
+    startRetrace,
+    stopRetrace,
+    confirmAtBeacon,
   };
   return <HikeContext.Provider value={value}>{children}</HikeContext.Provider>;
 }

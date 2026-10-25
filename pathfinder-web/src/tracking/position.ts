@@ -40,7 +40,7 @@ const STRAIGHT_ENOUGH = 0.9;
 /** And only if it has at least this many compass readings. */
 const MIN_HEADING_SAMPLES = 5;
 /** The compass is too old to steer by after this long without a reading. */
-const HEADING_STALE_MS = 5000;
+export const HEADING_STALE_MS = 5000;
 
 export type PositionSource = 'gps' | 'estimated';
 
@@ -239,6 +239,25 @@ export function positionManualDrop(previous: PositionState, drop: Drop): Positio
       referenceCourse: previous.engine.course,
       turnStartedAt: null,
     },
+  };
+}
+
+/**
+ * The hiker says they're at a beacon (Retrace). While GPS is lost, the estimate
+ * restarts from the beacon's position, if the beacon is more certain than the
+ * estimate has become. With GPS working, GPS knows better, so nothing changes.
+ */
+export function positionAtBeacon(previous: PositionState, point: LatLon, accuracyM: number, at: number): PositionState {
+  const dr = previous.deadReckoning;
+  if (!previous.gpsLost || !dr || accuracyM >= dr.accuracyM) return previous;
+  const position = { lat: point.lat, lon: point.lon };
+  return {
+    ...previous,
+    deadReckoning: startFrom(position, accuracyM),
+    estimatedAt: at,
+    metresSinceFeed: 0,
+    // Move the beacon rules' anchor too, so the jump doesn't count as walking.
+    engine: { ...previous.engine, anchor: { ...position, accuracyM, timestamp: at } },
   };
 }
 

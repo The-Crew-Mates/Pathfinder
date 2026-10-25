@@ -10,6 +10,7 @@
 import { type PointerEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { Beacon } from '../../beacons/types';
+import type { LatLon } from '../../geo/types';
 import { isInside, type MapArea, useMapArea } from '../../map/mapArea';
 import { linePath, makeProjector, shapePath } from '../../map/projection';
 import type { Fix } from '../../tracking/engine';
@@ -27,6 +28,10 @@ type Props = {
   beacons: Beacon[];
   /** True when the satellite-style texture is shown behind the map. */
   textured: boolean;
+  /** Retrace (Backtrack screen): the way back, from the hiker through the beacons to the start. */
+  retracePath?: LatLon[];
+  /** Retrace: the beacon being walked to, drawn with a ring around it. */
+  targetBeaconId?: string | null;
 };
 
 const PLACE_COLOURS: Record<string, string> = {
@@ -37,7 +42,17 @@ const PLACE_COLOURS: Record<string, string> = {
   parking: '#94a3b8',
 };
 
-export function RealMap({ isDark, zoom, recenterKey, position, estimated = false, beacons, textured }: Props) {
+export function RealMap({
+  isDark,
+  zoom,
+  recenterKey,
+  position,
+  estimated = false,
+  beacons,
+  textured,
+  retracePath,
+  targetBeaconId = null,
+}: Props) {
   const { area, error } = useMapArea();
   const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 400, height: 490 });
@@ -56,11 +71,17 @@ export function RealMap({ isDark, zoom, recenterKey, position, estimated = false
     return () => observer.disconnect();
   }, []);
 
-  // Follow the hiker, or start at the middle of the map area.
+  // Follow the hiker, or start at the middle of the map area. Only move when
+  // the position really changed: a new object every time would redraw forever.
+  const lat = position?.lat;
+  const lon = position?.lon;
   useEffect(() => {
-    if (following && position) setCenter({ lat: position.lat, lon: position.lon });
-    else if (!center && area) setCenter(area.center);
-  }, [following, position, area, center]);
+    if (following && lat !== undefined && lon !== undefined) {
+      setCenter((old) => (old && old.lat === lat && old.lon === lon ? old : { lat, lon }));
+    } else if (area) {
+      setCenter((old) => old ?? area.center);
+    }
+  }, [following, lat, lon, area]);
 
   // The recenter button: follow the hiker again.
   useEffect(() => {
@@ -103,6 +124,10 @@ export function RealMap({ isDark, zoom, recenterKey, position, estimated = false
   const fillOpacity = textured ? 0.75 : 1;
   const outside = position && !isInside(area, position.lat, position.lon);
   const posXY = position ? projector.toXY(position.lat, position.lon) : null;
+  const retraceLine =
+    retracePath && retracePath.length >= 2
+      ? linePath(retracePath.map((p): [number, number] => [p.lat, p.lon]), projector)
+      : null;
   const ring = estimated ? '#F59E0B' : isDark ? '#00E5FF' : '#2563EB';
   const dot = estimated ? '#D97706' : isDark ? '#0284C7' : '#2563EB';
 
@@ -145,12 +170,22 @@ export function RealMap({ isDark, zoom, recenterKey, position, estimated = false
           );
         })}
 
+        {/* Retrace: the way back, a glowing line under a dashed one. */}
+        {retraceLine && (
+          <g>
+            <path d={retraceLine} fill="none" stroke="#10b981" strokeOpacity={0.35} strokeWidth={9} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+            <path d={retraceLine} fill="none" stroke={isDark ? '#a7f3d0' : '#047857'} strokeWidth={2.5} strokeDasharray="8 6" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+          </g>
+        )}
         {/* Your beacons, numbered in the order they were dropped. */}
         {beacons.map((beacon, i) => {
           const [x, y] = projector.toXY(beacon.lat, beacon.lon);
           const r = 9 * metresPerPixel;
           return (
             <g key={beacon.id}>
+              {beacon.id === targetBeaconId && (
+                <circle cx={x} cy={y} r={16 * metresPerPixel} fill="none" stroke="#34d399" strokeWidth={3 * metresPerPixel} className="animate-pulse" />
+              )}
               <circle cx={x} cy={y} r={r} fill={beacon.source === 'gps' ? '#10b981' : '#f59e0b'} stroke="#062a1d" strokeWidth={2 * metresPerPixel} />
               <text x={x} y={y} dy={4 * metresPerPixel} textAnchor="middle" fontSize={10 * metresPerPixel} fontWeight={800} fill="#062a1d" fontFamily="Space Grotesk, monospace">
                 {i + 1}
