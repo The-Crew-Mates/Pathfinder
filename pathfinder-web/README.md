@@ -78,15 +78,15 @@ Under thick trees or in a valley, GPS can drop out. Pathfinder then keeps estima
 The code: `steps.ts` (step counting), `heading.ts` (tilt-proof compass heading), `sensors.ts` (the browser events), `position.ts` (GPS + dead reckoning + learning), and the existing `src/geo/deadReckoning.ts` (the math).
 
 ## The map (demo)
-- **One demo area:** a 3 × 3 km area around Varala and Pyynikki in Tampere, drawn from real map data.
+- **One demo area:** a 3 × 3 km area around Tampere University's Hervanta campus, drawn from real map data.
 - **What's on it:**
   - **from OpenStreetMap:** paths, roads, water, streams, forest and parks
-  - **from Lipas:** official trails (the Pyynikki and Viikinsaari nature trails), highlighted in green
-  - **landmarks:** viewpoints, parking and water points
+  - **from Lipas:** official trails (e.g. Suolijärvi nature trail, Hervantajärvi hiking route), highlighted in green
+  - **landmarks:** shelters, viewpoints and water points (parking is left out: there are over a hundred spots in Hervanta)
   - **your beacons,** numbered
   - **your position,** with its ± accuracy circle
 - **Using it:** it follows you while you hike. Drag to look around, use **recenter** to follow you again, and **+ / −** to zoom.
-- **Offline:** the data (`public/maps/tampere-varala.json`, 165 KB) ships with the app, so the map works offline. OpenStreetMap's map *images* can't be saved for offline use under its usage rules, so the app draws the map itself from the data.
+- **Offline:** the data (`public/maps/tampere-hervanta.json`, 371 KB: Hervanta is a busy suburb, so there are many paths and roads) ships with the app, so the map works offline. OpenStreetMap's map *images* can't be saved for offline use under its usage rules, so the app draws the map itself from the data.
 - **Credits:** the map shows "© OpenStreetMap contributors · Lipas", as their licenses require.
 - **Rebuilding the data:** from the repo folder, run `python3 scripts/build_demo_map.py`. It needs internet, and `--refresh` downloads everything again.
 

@@ -4,16 +4,16 @@ Usage:
     python3 scripts/build_demo_map.py            # reuses downloads from the last 24 h
     python3 scripts/build_demo_map.py --refresh  # download everything again
 
-Writes pathfinder-web/public/maps/tampere-varala.json, which the app draws
+Writes pathfinder-web/public/maps/tampere-hervanta.json, which the app draws
 offline: paths, roads, water, forest, parks and wetland from OpenStreetMap,
-plus official trails from Lipas and landmarks (shelters, viewpoints, water
-points, parking) in the area.
+plus official trails from Lipas and landmarks (shelters, huts, viewpoints and
+water points) in the area.
 
 OpenStreetMap's map *images* (tiles) can't be saved for offline use under
 their usage rules, so the app draws the map itself from this data instead.
 The map shows "© OpenStreetMap contributors" as the ODbL license requires.
 
-The area is a 3 x 3 km square around Varala Sports Institute in Pyynikki, Tampere.
+The area is a 3 x 3 km square around Tampere University's Hervanta campus, Tampere.
 """
 
 import argparse
@@ -26,9 +26,9 @@ import import_trails as trails
 from database import ROOT
 
 AREA = {
-    "id": "tampere-varala",
-    "name": "Varala & Pyynikki",
-    "center": (61.49433, 23.71329),  # Varalan urheiluopisto (Varala Sports Institute)
+    "id": "tampere-hervanta",
+    "name": "Hervanta campus",
+    "center": (61.44955, 23.85700),  # Tampere University, Hervanta campus (Tietotalo)
     "radius_m": 1500,
     "lipas_city_codes": [837],  # Tampere
 }
@@ -282,8 +282,13 @@ def fetch_osm(box, refresh):
     return trails.fetch_json(trails.OVERPASS_URLS[0], form={"data": query}, refresh=refresh)["elements"]
 
 
+# Landmark types left off the demo map. A suburb like Hervanta has well over
+# a hundred parking spots, which would bury the shelters and viewpoints.
+SKIP_LANDMARKS = {"parking"}
+
+
 def fetch_landmarks(box, refresh):
-    """Shelters, huts, viewpoints, water points and parking in the area (same rules as the trail import)."""
+    """Shelters, huts, viewpoints and water points in the area (same rules as the trail import, minus SKIP_LANDMARKS)."""
     bbox = ",".join(f"{v:.5f}" for v in box)
     query = "[out:json][timeout:60];(" + "".join(f"{f}({bbox});" for f in trails.OVERPASS_FILTERS) + ");out center tags;"
     elements = trails.fetch_json(trails.OVERPASS_URLS[0], form={"data": query}, refresh=refresh)["elements"]
@@ -293,7 +298,7 @@ def fetch_landmarks(box, refresh):
         kind = trails.landmark_type(tags)
         lat = element.get("lat", element.get("center", {}).get("lat"))
         lon = element.get("lon", element.get("center", {}).get("lon"))
-        if kind and lat is not None and _inside((lat, lon), box):
+        if kind and kind not in SKIP_LANDMARKS and lat is not None and _inside((lat, lon), box):
             places.append({"name": tags.get("name") or trails.DEFAULT_NAMES[kind], "type": kind,
                            "lat": round(lat, 5), "lon": round(lon, 5)})
     return places
