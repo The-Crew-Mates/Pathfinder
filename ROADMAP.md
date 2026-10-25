@@ -52,6 +52,7 @@ Work through the phases **one at a time**. For each phase:
 | Web app (beacon trail), steps 1–3 of 6: offline base, beacon storage + debug screen, hike mode with GPS; plus a demo map (Hervanta campus, Tampere) | Built and tested locally (branch `web-app`), waiting for review |
 | Web app step 4: dead reckoning (steps + compass), simulate GPS loss, record and replay walks, real Confidence screen | Built and tested (unit tests + a walk on an Android phone), branch `web-app`, waiting for review |
 | Web app step 5: Retrace on the Backtrack screen (beacon to beacon back to the start, shortcuts, off-track warning, "I'm at this beacon") | Built and tested (unit tests + a fake-GPS walk in the browser), branch `retrace`; still needs a walk on a phone. Also fixes a redraw loop in the map that was there since step 4 |
+| Web app step 6: polish (real compass on the Live screen and in the Compass pop-up, Backtrack without GPS and in daylight mode, beacons restart cleanly after Retrace, prototype leftovers and the unused QR scanner removed) | Built and tested (unit tests + browser), branch `polish`; compass needs a check on a phone |
 
 The repo lives at `github.com/The-Crew-Mates/Pathfinder` (public).
 

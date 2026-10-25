@@ -243,6 +243,30 @@ export function positionManualDrop(previous: PositionState, drop: Drop): Positio
 }
 
 /**
+ * Retrace stopped: the automatic beacons start again. While retracing, the
+ * rules kept "dropping" beacons that were never saved, so start them over from
+ * the last beacon that WAS saved. If that was long ago, the time rule drops a
+ * beacon at the next check, right where the hiker is.
+ */
+export function positionRestartRules(
+  previous: PositionState,
+  lastSaved: { timestamp: number; lat: number; lon: number } | null,
+): PositionState {
+  return {
+    ...previous,
+    engine: {
+      ...previous.engine,
+      lastBeacon: lastSaved
+        ? { timestamp: lastSaved.timestamp, position: { lat: lastSaved.lat, lon: lastSaved.lon } }
+        : previous.engine.lastBeacon,
+      distanceSinceBeaconM: 0,
+      referenceCourse: previous.engine.course,
+      turnStartedAt: null,
+    },
+  };
+}
+
+/**
  * The hiker says they're at a beacon (Retrace). While GPS is lost, the estimate
  * restarts from the beacon's position, if the beacon is more certain than the
  * estimate has become. With GPS working, GPS knows better, so nothing changes.

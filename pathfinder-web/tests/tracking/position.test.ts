@@ -10,6 +10,7 @@ import {
   newPosition,
   positionAtBeacon,
   positionFix,
+  positionRestartRules,
   positionGpsLost,
   positionHeading,
   positionSteps,
@@ -173,6 +174,31 @@ describe('when GPS is lost', () => {
     expect(back).toMatchObject({ kind: 'gps-back', estimatedAccuracyM: 12.5 });
     expect(back && back.kind === 'gps-back' && back.errorM).toBeGreaterThan(10);
     expect(currentPosition(r.state)).toMatchObject({ ...real, source: 'gps' });
+  });
+});
+
+describe('after Retrace stops', () => {
+  /** A saved start beacon, then 20 minutes later a time beacon the app didn't save (it was retracing). */
+  function afterUnsavedDrop() {
+    const r = runner();
+    r.take(positionFix(r.state, fixAt(START, 0), settings));
+    r.take(positionFix(r.state, fixAt(START, 20), settings));
+    expect(r.drops.map((d) => d.reason)).toEqual(['start', 'time']);
+    return r;
+  }
+
+  it('counts from the last saved beacon, so an overdue time beacon drops at the next check', () => {
+    const r = afterUnsavedDrop();
+    r.set(positionRestartRules(r.state, { timestamp: T0, ...START }));
+    expect(r.state.engine.distanceSinceBeaconM).toBe(0);
+    r.take(positionTick(r.state, T0 + 20.5 * MINUTE, settings));
+    expect(r.drops.map((d) => d.reason)).toEqual(['start', 'time', 'time']);
+  });
+
+  it('would otherwise wait for a beacon that was never saved', () => {
+    const r = afterUnsavedDrop();
+    r.take(positionTick(r.state, T0 + 20.5 * MINUTE, settings));
+    expect(r.drops).toHaveLength(2);
   });
 });
 

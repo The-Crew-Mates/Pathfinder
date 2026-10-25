@@ -2,8 +2,8 @@
 # it, so it isn't committed. (pathfinder.db IS committed: it's the source of
 # truth for the trail data and its version numbers.)
 # The leading / means only the public/ folder at the top of the repo, not
-# other folders called public/ (like thack-main/public/, which holds the
-# frontend's images and must be committed).
+# other folders called public/ (like pathfinder-web/public/, which holds the
+# web app's icons and demo map and must be committed).
 /public/
 
 # Downloads saved by scripts/import_trails.py, so re-runs don't ask the free

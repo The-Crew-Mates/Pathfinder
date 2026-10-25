@@ -1,4 +1,13 @@
-yo wassup
+# Pathfinder
+
+Pathfinder helps hikers find their way back, even without GPS. As you walk it drops **beacons** (saved positions) along your route, keeps estimating where you are from your steps and the compass when GPS drops out, and leads you back beacon by beacon.
+
+This repo has two parts:
+
+- **The web app** (`pathfinder-web/`): an installable web app that works offline. Live at https://the-crew-mates.github.io/Pathfinder/app/. How to run and test it: [pathfinder-web/README.md](pathfinder-web/README.md).
+- **The trail database** (below): real hiking trails and landmarks, published as JSON bundles for offline use.
+
+The plan and its status are in [ROADMAP.md](ROADMAP.md).
 
 ## Trail database
 
