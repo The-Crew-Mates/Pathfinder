@@ -82,11 +82,11 @@ The code: `steps.ts` (step counting), `heading.ts` (tilt-proof compass heading),
 - **What's on it:**
   - **from OpenStreetMap:** paths, roads, water, streams, forest and parks
   - **from Lipas:** official trails (e.g. Suolijärvi nature trail, Hervantajärvi hiking route), highlighted in green
-  - **landmarks:** shelters, viewpoints, parking and water points
+  - **landmarks:** shelters, viewpoints and water points (parking is left out: there are over a hundred spots in Hervanta)
   - **your beacons,** numbered
   - **your position,** with its ± accuracy circle
 - **Using it:** it follows you while you hike. Drag to look around, use **recenter** to follow you again, and **+ / −** to zoom.
-- **Offline:** the data (`public/maps/tampere-hervanta.json`, 383 KB: Hervanta is a busy suburb, so there are many paths and roads) ships with the app, so the map works offline. OpenStreetMap's map *images* can't be saved for offline use under its usage rules, so the app draws the map itself from the data.
+- **Offline:** the data (`public/maps/tampere-hervanta.json`, 371 KB: Hervanta is a busy suburb, so there are many paths and roads) ships with the app, so the map works offline. OpenStreetMap's map *images* can't be saved for offline use under its usage rules, so the app draws the map itself from the data.
 - **Credits:** the map shows "© OpenStreetMap contributors · Lipas", as their licenses require.
 - **Rebuilding the data:** from the repo folder, run `python3 scripts/build_demo_map.py`. It needs internet, and `--refresh` downloads everything again.
 
