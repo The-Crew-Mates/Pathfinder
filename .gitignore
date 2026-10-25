@@ -13,6 +13,13 @@ cache/
 # Temporary file SQLite makes while it's writing
 pathfinder.db-journal
 
+# Installed packages and Expo's local files. app/ has its own .gitignore
+# for these too, but that file only exists on branches that include the
+# app; this keeps them hidden on every branch.
+node_modules/
+.expo/
+expo-env.d.ts
+
 # Python
 __pycache__/
 .venv/
