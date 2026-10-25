@@ -1,4 +1,4 @@
-export type ScreenId = 'live-trail' | 'backtrack' | 'confidence';
+export type ScreenId = 'live-trail' | 'backtrack' | 'confidence' | 'debug';
 
 export type DemoMode = 'normal' | 'drift' | 'calibrated';
 

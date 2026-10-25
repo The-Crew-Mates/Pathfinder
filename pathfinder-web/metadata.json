@@ -1,5 +1,5 @@
 {
-  "name": "Topo - Offline Backcountry Navigation & Backtrack",
+  "name": "Pathfinder - Offline Backcountry Navigation & Backtrack",
   "description": "Dead-reckoning live trail navigation, inertial backtrack guidance, position confidence diagnostics, and optical QR trail marker calibration.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

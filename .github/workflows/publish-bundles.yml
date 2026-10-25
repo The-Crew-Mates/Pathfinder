@@ -1,6 +1,6 @@
 # Tests and builds everything on the GitHub Pages site, then publishes it:
 #   - the trail bundles, from pathfinder.db   → /Pathfinder/index.json, /Pathfinder/trails/
-#   - the web app, from thack-main/           → /Pathfinder/app/
+#   - the web app, from pathfinder-web/       → /Pathfinder/app/
 #
 # - Push to main that changes any of it: test + build + publish.
 # - Pull request: test + build only, as a check (nothing is published).
@@ -19,7 +19,7 @@ on:
       - scripts/**
       - db/**
       - tests/**
-      - thack-main/**
+      - pathfinder-web/**
       - .github/workflows/publish-bundles.yml
   pull_request:
     paths:
@@ -27,7 +27,7 @@ on:
       - scripts/**
       - db/**
       - tests/**
-      - thack-main/**
+      - pathfinder-web/**
       - .github/workflows/publish-bundles.yml
   workflow_dispatch:
 
@@ -62,26 +62,26 @@ jobs:
         with:
           node-version: "24"
           cache: npm
-          cache-dependency-path: thack-main/package-lock.json
+          cache-dependency-path: pathfinder-web/package-lock.json
 
       - name: Install the web app's packages
-        working-directory: thack-main
+        working-directory: pathfinder-web
         run: npm ci
 
       - name: Typecheck the web app
-        working-directory: thack-main
+        working-directory: pathfinder-web
         run: npm run lint
 
       - name: Run the web app tests
-        working-directory: thack-main
+        working-directory: pathfinder-web
         run: npm test
 
       - name: Build the web app into public/app
-        working-directory: thack-main
+        working-directory: pathfinder-web
         run: npm run build -- --base=/Pathfinder/app/ --outDir ../public/app --emptyOutDir
 
       - name: Check the web app works offline
-        working-directory: thack-main
+        working-directory: pathfinder-web
         run: npm run check-offline -- ../public/app
 
       # --- Publish -----------------------------------------------------------
