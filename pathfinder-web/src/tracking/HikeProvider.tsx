@@ -54,7 +54,7 @@ import {
   retraceGuidance,
   updateRetrace,
 } from './retrace';
-import { MotionSensors, requestSensorPermission, type SensorsStatus } from './sensors';
+import { MotionSensors, requestSensorPermission, type SensorPermission, type SensorsStatus } from './sensors';
 import { type Battery, useBattery } from './useBattery';
 import { ScreenWakeLock, type WakeLockStatus } from './wakeLock';
 
@@ -260,7 +260,7 @@ export function HikeProvider({ children }: { children: ReactNode }) {
 
   /** Start GPS, the sensors, the screen lock and the time checks for the hike `id`. */
   const startTracking = useCallback(
-    (id: string, state: PositionState, sensorsAllowed: boolean | 'unknown') => {
+    (id: string, state: PositionState, sensorsAllowed: SensorPermission | 'unknown') => {
       hikeId.current = id;
       tracking.current = state;
       readings.current = [];

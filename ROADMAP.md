@@ -53,6 +53,7 @@ Work through the phases **one at a time**. For each phase:
 | Web app step 4: dead reckoning (steps + compass), simulate GPS loss, record and replay walks, real Confidence screen | Built and tested (unit tests + a walk on an Android phone), branch `web-app`, waiting for review |
 | Web app step 5: Retrace on the Backtrack screen (beacon to beacon back to the start, shortcuts, off-track warning, "I'm at this beacon") | Built and tested (unit tests + a fake-GPS walk in the browser), branch `retrace`; still needs a walk on a phone. Also fixes a redraw loop in the map that was there since step 4 |
 | Web app step 6: polish (real compass on the Live screen and in the Compass pop-up, Backtrack without GPS and in daylight mode, beacons restart cleanly after Retrace, prototype leftovers and the unused QR scanner removed) | Built and tested (unit tests + browser), branch `polish`; compass needs a check on a phone |
+| Fix: motion sensors on newer Android Chrome, and a working Confidence screen (sensor check without a hike, tap to allow, how to unblock, Dead reckoning tile) | Built and tested (unit tests + browser), branch `sensor-fix`; needs a check on an Android phone |
 
 The repo lives at `github.com/The-Crew-Mates/Pathfinder` (public).
 

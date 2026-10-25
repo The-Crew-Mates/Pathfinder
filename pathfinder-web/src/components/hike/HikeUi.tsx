@@ -6,6 +6,7 @@ import { useState } from 'react';
 
 import { formatAccuracy, formatTime } from '../../lib/format';
 import { type HikeContextValueForUi, useHike } from '../../tracking/HikeProvider';
+import { blockedSensorHelp } from '../../tracking/sensors';
 
 function minutesAgo(timestamp: number): string {
   const minutes = Math.round((Date.now() - timestamp) / 60_000);
@@ -177,6 +178,9 @@ export function HikePanel({ isDark }: { isDark: boolean }) {
             ? 'Motion sensors blocked: tap to try again'
             : 'Tap to turn on step counting and the compass'}
         </button>
+      )}
+      {(sensors.motion === 'denied' || sensors.compass === 'denied') && (
+        <p className={`text-[12px] leading-snug ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>{blockedSensorHelp()}</p>
       )}
 
       {dropping ? (
